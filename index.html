@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OMF Booking Suite — Minimalist</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="topbar-row">
+          <div>
+            <h1 class="brand-title">OMF Booking Suite</h1>
+            <p class="brand-subtitle">Minimalist Browser Workspace · Local Master Storage · Session Bookings</p>
+          </div>
+          <div class="status-group">
+            <span id="badge-master" class="pill pill-primary">Master: 0 Cust | 0 Prod</span>
+            <span id="badge-session" class="pill pill-success">Session Bookings: 0</span>
+            <button id="btn-theme-toggle" type="button" class="btn-secondary">☾ Dark</button>
+          </div>
+        </div>
+
+        <nav id="top-nav" class="nav-strip">
+          <button data-tab="dashboard" class="nav-btn active">Dashboard</button>
+          <button data-tab="import" class="nav-btn">Import Files</button>
+          <button data-tab="bookings" class="nav-btn">All Bookings</button>
+          <button data-tab="customers" class="nav-btn">Customers</button>
+          <button data-tab="products" class="nav-btn">Products</button>
+          <button data-tab="bonus" class="nav-btn">Bonus Policies</button>
+          <button data-tab="analytics" class="nav-btn">Sales Analysis</button>
+          <button data-tab="validation" class="nav-btn">Validation</button>
+          <button data-tab="export" class="nav-btn">Export Excel</button>
+          <button data-tab="storage" class="nav-btn">Storage & Clear</button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main-container">
+      <div id="toast" class="toast-box hidden" style="display:none;"></div>
+
+      <!-- DASHBOARD -->
+      <section id="tab-dashboard" class="tab-panel">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Overview</h2>
+            <p class="page-desc">Live metrics from your active booking session and saved master catalog.</p>
+          </div>
+        </div>
+        <div class="grid-kpis">
+          <div class="surface surface-pad"><div class="kpi-label">Total Bookings</div><div id="kpi-bookings" class="kpi-value">0</div></div>
+          <div class="surface surface-pad"><div class="kpi-label">Total Revenue</div><div id="kpi-revenue" class="kpi-value text-accent-green">PKR 0.00</div></div>
+          <div class="surface surface-pad"><div class="kpi-label">Product Lines</div><div id="kpi-lines" class="kpi-value">0</div></div>
+          <div class="surface surface-pad"><div class="kpi-label">Imported OMF Files</div><div id="kpi-files" class="kpi-value">0</div></div>
+          <div class="surface surface-pad"><div class="kpi-label">Total Units Sold</div><div id="kpi-units" class="kpi-value">0</div></div>
+          <div class="surface surface-pad"><div class="kpi-label">Avg Booking Value</div><div id="kpi-avg" class="kpi-value">PKR 0.00</div></div>
+          <div class="surface surface-pad"><div class="kpi-label">Customers Saved</div><div id="kpi-customers" class="kpi-value text-accent-blue">0</div></div>
+          <div class="surface surface-pad"><div class="kpi-label">Products Saved</div><div id="kpi-products" class="kpi-value text-accent-blue">0</div></div>
+        </div>
+      </section>
+
+      <!-- IMPORT -->
+      <section id="tab-import" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Import Data</h2>
+            <p class="page-desc">Processed locally in your browser without server upload.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="surface surface-pad">
+            <div class="topbar-row" style="margin-bottom:8px;">
+              <h3 style="margin:0;font-size:1rem;">Booking Files (.omf / .txt)</h3>
+              <span class="pill">Session Only</span>
+            </div>
+            <p class="page-desc" style="margin-bottom:14px;">Cleared automatically when you close this tab.</p>
+            <input id="input-omf" type="file" accept=".omf,.txt" multiple style="width:100%;" />
+            <div id="omf-file-list" class="text-muted" style="margin-top:12px;font-size:0.8rem;"></div>
+          </div>
+
+          <div class="surface surface-pad">
+            <div class="topbar-row" style="margin-bottom:8px;">
+              <h3 style="margin:0;font-size:1rem;">Master Catalog CSVs</h3>
+              <span class="pill pill-primary">Saved in Browser</span>
+            </div>
+            <p class="page-desc" style="margin-bottom:14px;">Persists across refreshes until cleared.</p>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <div class="kpi-label" style="margin-bottom:6px;">Products CSV (product_code, product_name, packing, company, category, trade_price)</div>
+                <input id="input-products" type="file" accept=".csv" style="width:100%;" />
+              </div>
+              <div>
+                <div class="kpi-label" style="margin-bottom:6px;">Customers CSV (customer_code, customer_name, address, city, phone)</div>
+                <input id="input-customers" type="file" accept=".csv" style="width:100%;" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BOOKINGS -->
+      <section id="tab-bookings" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Bookings</h2>
+            <p class="page-desc">Browse orders and inspect stacked or cross-product bonuses.</p>
+          </div>
+          <select id="filter-omf-file">
+            <option value="">All Imported Files</option>
+          </select>
+        </div>
+
+        <div class="surface table-wrap" style="max-height:360px;margin-bottom:20px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Booking #</th><th>Date</th><th>Customer Code</th><th>Customer Name</th>
+                <th>Salesperson</th><th>Route</th><th>Total (PKR)</th><th>Source File</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-bookings"></tbody>
+          </table>
+        </div>
+
+        <div class="surface surface-pad">
+          <div class="topbar-row" style="margin-bottom:12px;">
+            <h3 style="margin:0;font-size:1rem;">Order Line & Bonus Inspector</h3>
+            <div class="status-group">
+              <button id="btn-prev-order" type="button" class="btn-secondary">◀ Prev</button>
+              <select id="select-booking-detail"><option value="">Select a customer order...</option></select>
+              <button id="btn-next-order" type="button" class="btn-secondary">Next ▶</button>
+              <span id="order-nav-counter" class="text-muted" style="font-size:0.78rem;"></span>
+            </div>
+          </div>
+          <div id="booking-detail-meta" class="text-muted" style="font-size:0.8rem;margin-bottom:10px;"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product Code</th><th>Product Name</th><th>Packing</th><th>Company</th>
+                  <th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Bonus</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-booking-lines"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- CUSTOMERS -->
+      <section id="tab-customers" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Customers</h2>
+            <p class="page-desc">Stored locally in browser storage.</p>
+          </div>
+          <input id="search-customers" type="text" placeholder="Search name or code..." />
+        </div>
+        <div class="surface table-wrap" style="max-height:520px;">
+          <table>
+            <thead><tr><th>Code</th><th>Name</th><th>City</th><th>Phone</th><th>Address</th></tr></thead>
+            <tbody id="tbody-customers"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PRODUCTS -->
+      <section id="tab-products" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Products</h2>
+            <p class="page-desc">Leading zeros stripped automatically for clean matching.</p>
+          </div>
+          <input id="search-products" type="text" placeholder="Search name or code..." />
+        </div>
+        <div class="surface table-wrap" style="max-height:520px;">
+          <table>
+            <thead><tr><th>Code</th><th>Name</th><th>Packing</th><th>Company</th><th>Category</th><th>Trade Price</th></tr></thead>
+            <tbody id="tbody-products"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- BONUS POLICIES -->
+      <section id="tab-bonus" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Bonus Policies</h2>
+            <p class="page-desc">Stacked tiers in a single table, Enter to add rows, cross-product FOC, or CSV import.</p>
+          </div>
+          <button id="btn-download-bonus-template" type="button" class="btn-primary">Download CSV Template + Tutorial</button>
+        </div>
+
+        <div class="surface surface-pad" style="margin-bottom:18px;">
+          <div class="topbar-row" style="margin-bottom:8px;">
+            <h3 style="margin:0;font-size:0.98rem;">Import Bonus Policies via CSV</h3>
+            <span class="pill pill-primary">Persists Until Cleared</span>
+          </div>
+          <p class="page-desc" style="margin-bottom:12px;">
+            Columns: <code>sale_code, foc_code, min_qty, bonus_qty, start_date, end_date</code>. Matching sale + FOC pairs group into stacked tiers automatically.
+          </p>
+          <div class="status-group">
+            <input id="input-bonus-csv" type="file" accept=".csv" />
+            <button id="btn-toggle-bonus-tutorial" type="button" class="btn-secondary">CSV Format Guide</button>
+          </div>
+          <div id="bonus-csv-tutorial" class="hidden" style="display:none;margin-top:12px;padding:12px;border-radius:8px;background:var(--bg-subtle);font-size:0.8rem;color:var(--text-secondary);">
+            <div><strong>sale_code:</strong> Product sold (leading zeros stripped).</div>
+            <div><strong>foc_code:</strong> Bonus product given (leave blank for same product, or enter another code such as Brufen DS).</div>
+            <div><strong>min_qty &amp; bonus_qty:</strong> Quantity threshold and free units (e.g. 12+1, 40+4, 120+20).</div>
+            <div><strong>start_date &amp; end_date:</strong> Optional YYYY-MM-DD date window.</div>
+          </div>
+        </div>
+
+        <div class="surface surface-pad" style="margin-bottom:18px;">
+          <div class="grid-2" style="margin-bottom:16px;">
+            <div>
+              <div class="kpi-label" style="margin-bottom:6px;">1. Sale Product</div>
+              <select id="bonus-sale-select" style="width:100%;margin-bottom:8px;"><option value="">-- Select Sale Product --</option></select>
+              <input id="bonus-sale-code" type="text" placeholder="Or enter Sale Product Code" style="width:100%;" />
+            </div>
+            <div>
+              <div class="kpi-label" style="margin-bottom:6px;">2. FOC Bonus Product</div>
+              <select id="bonus-foc-select" style="width:100%;margin-bottom:8px;"><option value="">-- Same as Sale Product --</option></select>
+              <input id="bonus-foc-code" type="text" placeholder="Or enter FOC Code (leave empty for same)" style="width:100%;" />
+            </div>
+          </div>
+
+          <div class="topbar-row" style="margin-bottom:8px;">
+            <h3 style="margin:0;font-size:0.92rem;">3. Tier Rows (Press Enter to add next line)</h3>
+            <button id="btn-add-tier-row" type="button" class="btn-secondary">+ Add Row</button>
+          </div>
+
+          <div class="table-wrap" style="margin-bottom:14px;">
+            <table>
+              <thead>
+                <tr><th>Min Qty</th><th>Bonus Free Qty</th><th>Start Date</th><th>End Date</th><th>Remove</th></tr>
+              </thead>
+              <tbody id="tbody-bonus-draft-rows"></tbody>
+            </table>
+          </div>
+
+          <div class="topbar-row">
+            <span class="text-muted" style="font-size:0.78rem;">Fill tier values and press <strong>Enter</strong> to append another row, then save once.</span>
+            <button id="btn-save-bonus-policy" type="button" class="btn-primary">Save Policy</button>
+          </div>
+        </div>
+
+        <div class="surface table-wrap">
+          <table>
+            <thead>
+              <tr><th>Sale Product</th><th>FOC Bonus Product</th><th>Tier Breakdown</th><th>Action</th></tr>
+            </thead>
+            <tbody id="tbody-bonus"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section id="tab-analytics" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Sales Analysis</h2>
+            <p class="page-desc">Visual breakdown of active session bookings.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="surface surface-pad"><canvas id="chart-daily" height="190"></canvas></div>
+          <div class="surface surface-pad"><canvas id="chart-salesperson" height="190"></canvas></div>
+          <div class="surface surface-pad" style="grid-column:1 / -1;"><canvas id="chart-route" height="110"></canvas></div>
+        </div>
+      </section>
+
+      <!-- VALIDATION -->
+      <section id="tab-validation" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Validation</h2>
+            <p class="page-desc">Check unmatched customer and product codes against saved master CSVs.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="surface surface-pad">
+            <h3 style="margin:0 0 10px;font-size:0.98rem;">Unknown Customers (<span id="val-cust-count">0</span>)</h3>
+            <div class="table-wrap" style="max-height:280px;">
+              <table><thead><tr><th>Booking #</th><th>Customer Code</th></tr></thead><tbody id="tbody-val-cust"></tbody></table>
+            </div>
+          </div>
+          <div class="surface surface-pad">
+            <h3 style="margin:0 0 10px;font-size:0.98rem;">Unknown Products (<span id="val-prod-count">0</span>)</h3>
+            <div class="table-wrap" style="max-height:280px;">
+              <table><thead><tr><th>Product Code</th></tr></thead><tbody id="tbody-val-prod"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXPORT -->
+      <section id="tab-export" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Export Report</h2>
+            <p class="page-desc">Download a multi-sheet Excel workbook generated locally.</p>
+          </div>
+        </div>
+        <div class="surface surface-pad" style="max-width:520px;">
+          <p class="page-desc" style="margin-bottom:14px;">Includes Booking Summary, Booking Details (with Bonuses), Customer Summary, and Product Summary.</p>
+          <button id="btn-export-excel" class="btn-primary">Download OMF_Comprehensive_Report.xlsx</button>
+        </div>
+      </section>
+
+      <!-- STORAGE -->
+      <section id="tab-storage" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Storage & Clear</h2>
+            <p class="page-desc">Control temporary session data and persistent browser storage.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="surface surface-pad">
+            <h3 style="margin:0 0 6px;font-size:0.98rem;">Session Bookings</h3>
+            <p class="page-desc" style="margin-bottom:14px;">Automatically cleared when closing this tab.</p>
+            <button id="btn-clear-session" class="btn-danger">Clear Booking Session</button>
+          </div>
+          <div class="surface surface-pad">
+            <h3 style="margin:0 0 6px;font-size:0.98rem;">Master Catalog & Policies</h3>
+            <p class="page-desc" style="margin-bottom:14px;">Stored in browser IndexedDB until cleared here.</p>
+            <button id="btn-clear-master" class="btn-danger">Clear Master & Bonus Data</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
