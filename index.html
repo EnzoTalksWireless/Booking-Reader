@@ -245,34 +245,68 @@
     <!-- TAB: BONUS POLICIES -->
     <section id="tab-bonus" class="tab-panel hidden space-y-6">
       <div>
-        <h2 class="text-2xl font-bold text-white">🎁 Multi-Tier Bonus Policy Manager</h2>
-        <p class="text-sm text-[#8b949e]">Configure stacked quantity tiers (e.g., 15+1 and 40+4). Stored locally in browser until cleared.</p>
+        <h2 class="text-2xl font-bold text-white">🎁 Multi-Tier & Cross-Product Bonus Policy Manager</h2>
+        <p class="text-sm text-[#8b949e]">Add multiple stacked quantity tiers (e.g., 12+1, 40+4, 120+20) in one table, press Enter to create the next row, and save once. Supports cross-product FOC bonuses (e.g., sell Brufen Plain, give Brufen DS).</p>
       </div>
 
-      <form id="form-bonus" class="card p-5 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
-        <div class="sm:col-span-2">
-          <label class="block text-xs text-[#8b949e] mb-1">Product Code</label>
-          <input id="bonus-prod-code" type="text" required placeholder="e.g. 1004" class="w-full text-sm" />
+      <div class="card p-5 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-[#c9d1d9] mb-1">1. Sale / Trigger Product (e.g. Brufen Syrup)</label>
+            <select id="bonus-sale-select" class="w-full text-sm mb-2">
+              <option value="">-- Select from Catalog or type code below --</option>
+            </select>
+            <input id="bonus-sale-code" type="text" placeholder="Sale Product Code (e.g. 1004)" class="w-full text-sm" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-[#c9d1d9] mb-1">2. Bonus FOC Product (Same or Different Product)</label>
+            <select id="bonus-foc-select" class="w-full text-sm mb-2">
+              <option value="">-- Same as Sale Product (Default) --</option>
+            </select>
+            <input id="bonus-foc-code" type="text" placeholder="FOC Product Code (leave empty for same product)" class="w-full text-sm" />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-[#8b949e] mb-1">Min Qty</label>
-          <input id="bonus-min-qty" type="number" min="1" value="15" required class="w-full text-sm" />
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-white">3. Policy Tier Rows (Press Enter in a row to add another line below)</h3>
+            <button id="btn-add-tier-row" type="button" class="px-3 py-1.5 rounded-md bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-xs font-medium text-white">
+              + Add Row
+            </button>
+          </div>
+
+          <div class="overflow-x-auto border border-[#30363d] rounded-lg">
+            <table>
+              <thead>
+                <tr>
+                  <th>Min Qty</th>
+                  <th>Bonus Free Qty</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
+                  <th>Remove</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-bonus-draft-rows"></tbody>
+            </table>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-[#8b949e] mb-1">Bonus Free Qty</label>
-          <input id="bonus-free-qty" type="number" min="1" value="1" required class="w-full text-sm" />
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <span class="text-xs text-[#8b949e]">Tip: Fill Min Qty, Bonus Qty, Start Date, and End Date, then press <strong>Enter</strong> to append a new row automatically.</span>
+          <button id="btn-save-bonus-policy" type="button" class="py-2 px-5 rounded-md bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-semibold">
+            💾 Save Policy
+          </button>
         </div>
-        <button type="submit" class="py-2 px-4 rounded-md bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-medium">Add Policy</button>
-      </form>
+      </div>
 
       <div class="card overflow-x-auto">
         <table>
           <thead>
             <tr>
-              <th>Product Code</th>
-              <th>Product Name</th>
-              <th>Min Quantity</th>
-              <th>Bonus Quantity</th>
+              <th>Sale Product</th>
+              <th>FOC Bonus Product</th>
+              <th>Tier Breakdown (Min + Bonus, Dates)</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -569,24 +603,89 @@
     // ==========================================
     // 3. BONUS CALCULATION & UI RENDERING
     // ==========================================
-    function computeBonus(productCode, qty) {
-      const norm = stripLeadingZeros(productCode);
-      const matched = state.bonusPolicies
-        .filter(p => stripLeadingZeros(p.product_code) === norm)
-        .sort((a, b) => Number(b.min_quantity) - Number(a.min_quantity));
+    // Each policy entry in state.bonusPolicies has:
+    // { id, sale_code, foc_code, tiers: [{ min_qty, bonus_qty, start_date, end_date }] }
+    function normalizePolicies() {
+      // Backward compatibility if any older flat policy items exist
+      return (state.bonusPolicies || []).map((item, idx) => {
+        if (Array.isArray(item.tiers)) return item;
+        return {
+          id: item.id || `pol_${idx}`,
+          sale_code: stripLeadingZeros(item.product_code || item.sale_code || ""),
+          foc_code: stripLeadingZeros(item.foc_code || item.product_code || ""),
+          tiers: [{
+            min_qty: Number(item.min_quantity) || 1,
+            bonus_qty: Number(item.bonus_quantity) || 1,
+            start_date: item.start_date || "",
+            end_date: item.end_date || ""
+          }]
+        };
+      });
+    }
 
-      let totalBonus = 0;
-      let rem = Number(qty) || 0;
-      for (const pol of matched) {
-        const minQ = Number(pol.min_quantity);
-        const bonQ = Number(pol.bonus_quantity);
-        if (minQ > 0 && rem >= minQ) {
-          const mult = Math.floor(rem / minQ);
-          totalBonus += mult * bonQ;
-          rem = rem % minQ;
+    function isDateWithinWindow(orderDateStr, startStr, endStr) {
+      if (!startStr && !endStr) return true;
+      if (!orderDateStr) return true;
+      const ordTime = Date.parse(orderDateStr);
+      if (Number.isNaN(ordTime)) return true;
+      if (startStr) {
+        const st = Date.parse(startStr);
+        if (!Number.isNaN(st) && ordTime < st) return false;
+      }
+      if (endStr) {
+        const en = Date.parse(endStr);
+        if (!Number.isNaN(en) && ordTime > en) return false;
+      }
+      return true;
+    }
+
+    // Returns { selfBonus: number, crossBonuses: [{ foc_code, qty }] }
+    function computeLineBonuses(productCode, qty, orderDate = "") {
+      const normSale = stripLeadingZeros(productCode);
+      const policies = normalizePolicies().filter(p => stripLeadingZeros(p.sale_code) === normSale);
+
+      let selfBonus = 0;
+      const crossMap = new Map();
+
+      for (const pol of policies) {
+        const normFoc = stripLeadingZeros(pol.foc_code || pol.sale_code);
+        const validTiers = (pol.tiers || [])
+          .filter(t => isDateWithinWindow(orderDate, t.start_date, t.end_date))
+          .sort((a, b) => Number(b.min_qty) - Number(a.min_qty));
+
+        let polBonus = 0;
+        let rem = Number(qty) || 0;
+        for (const tier of validTiers) {
+          const minQ = Number(tier.min_qty);
+          const bonQ = Number(tier.bonus_qty);
+          if (minQ > 0 && rem >= minQ) {
+            const mult = Math.floor(rem / minQ);
+            polBonus += mult * bonQ;
+            rem = rem % minQ;
+          }
+        }
+
+        if (polBonus > 0) {
+          if (normFoc === normSale) {
+            selfBonus += polBonus;
+          } else {
+            crossMap.set(normFoc, (crossMap.get(normFoc) || 0) + polBonus);
+          }
         }
       }
-      return totalBonus;
+
+      const crossBonuses = Array.from(crossMap.entries()).map(([foc_code, qtyVal]) => ({
+        foc_code,
+        qty: qtyVal
+      }));
+
+      return { selfBonus, crossBonuses };
+    }
+
+    function computeBonus(productCode, qty, orderDate = "") {
+      const res = computeLineBonuses(productCode, qty, orderDate);
+      const crossTotal = res.crossBonuses.reduce((s, c) => s + c.qty, 0);
+      return res.selfBonus + crossTotal;
     }
 
     function getCustomerMap() {
@@ -640,6 +739,7 @@
       renderBookingsTable(custMap, prodMap);
       renderCustomersTable();
       renderProductsTable();
+      populateBonusProductDropdowns(prodMap);
       renderBonusTable(prodMap);
       renderValidation(custMap, prodMap);
       renderCharts();
@@ -730,7 +830,17 @@
       meta.textContent = `Showing ${lines.length} product line(s) for Booking #${bNum}`;
       tbody.innerHTML = lines.map(d => {
         const p = prodMap.get(stripLeadingZeros(d.product_code));
-        const bonus = computeBonus(d.product_code, d.quantity);
+        const bookingObj = state.bookings.find(b => b.booking_number === bNum);
+        const orderDate = bookingObj ? bookingObj.booking_date : "";
+        const bInfo = computeLineBonuses(d.product_code, d.quantity, orderDate);
+        const parts = [];
+        if (bInfo.selfBonus > 0) parts.push(`+${bInfo.selfBonus}`);
+        bInfo.crossBonuses.forEach(cb => {
+          const focProd = prodMap.get(stripLeadingZeros(cb.foc_code));
+          const focLabel = focProd ? focProd.product_name : cb.foc_code;
+          parts.push(`+${cb.qty} FOC (${focLabel})`);
+        });
+        const bonusText = parts.length ? parts.join(" | ") : "-";
         return `<tr>
           <td class="font-mono">${d.product_code}</td>
           <td>${p ? p.product_name : '<span class="text-[#f85149]">Unmatched Product</span>'}</td>
@@ -739,7 +849,7 @@
           <td>${d.quantity}</td>
           <td>${Number(d.unit_price).toFixed(2)}</td>
           <td>${Number(d.line_total).toFixed(2)}</td>
-          <td class="font-bold text-[#3fb950]">${bonus > 0 ? '+' + bonus : '-'}</td>
+          <td class="font-bold text-[#3fb950]">${bonusText}</td>
         </tr>`;
       }).join("");
     }
@@ -781,19 +891,102 @@
         : `<tr><td colspan="6" class="text-center text-[#8b949e] py-6">No products loaded. Upload products.csv in Import Files.</td></tr>`;
     }
 
+    function populateBonusProductDropdowns(prodMap) {
+      const saleSel = document.getElementById("bonus-sale-select");
+      const focSel = document.getElementById("bonus-foc-select");
+      if (!saleSel || !focSel) return;
+
+      const prevSale = saleSel.value;
+      const prevFoc = focSel.value;
+
+      const optionsHtml = state.products.map(p => {
+        const code = stripLeadingZeros(p.product_code);
+        return `<option value="${code}">${code} - ${p.product_name || ""}</option>`;
+      }).join("");
+
+      saleSel.innerHTML = `<option value="">-- Select Sale Product from Catalog --</option>` + optionsHtml;
+      focSel.innerHTML = `<option value="">-- Same as Sale Product (Default) --</option>` + optionsHtml;
+
+      saleSel.value = prevSale;
+      focSel.value = prevFoc;
+    }
+
+    function addDraftTierRow(minVal = "", bonusVal = "", startVal = "", endVal = "", focusMin = false) {
+      const tbody = document.getElementById("tbody-bonus-draft-rows");
+      if (!tbody) return;
+      const tr = document.createElement("tr");
+      tr.className = "bonus-draft-row";
+      tr.innerHTML = `
+        <td><input type="number" min="1" placeholder="e.g. 12" value="${minVal}" class="draft-min w-28 text-sm" /></td>
+        <td><input type="number" min="1" placeholder="e.g. 1" value="${bonusVal}" class="draft-bonus w-28 text-sm" /></td>
+        <td><input type="date" value="${startVal}" class="draft-start text-sm" /></td>
+        <td><input type="date" value="${endVal}" class="draft-end text-sm" /></td>
+        <td><button type="button" class="btn-remove-draft-row text-xs px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#da3633] text-white border border-[#30363d]">✕</button></td>
+      `;
+
+      tr.querySelector(".btn-remove-draft-row").addEventListener("click", () => {
+        if (tbody.querySelectorAll("tr").length > 1) {
+          tr.remove();
+        } else {
+          tr.querySelectorAll("input").forEach(inp => inp.value = "");
+        }
+      });
+
+      // Pressing Enter on any input in a draft row creates a new row right below
+      tr.querySelectorAll("input").forEach(inp => {
+        inp.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addDraftTierRow("", "", tr.querySelector(".draft-start").value, tr.querySelector(".draft-end").value, true);
+          }
+        });
+      });
+
+      tbody.appendChild(tr);
+      if (focusMin) {
+        tr.querySelector(".draft-min").focus();
+      }
+    }
+
+    function resetBonusDraftBuilder() {
+      const tbody = document.getElementById("tbody-bonus-draft-rows");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      addDraftTierRow("", "", "", "", false);
+    }
+
     function renderBonusTable(prodMap) {
-      document.getElementById("tbody-bonus").innerHTML = state.bonusPolicies.length
+      state.bonusPolicies = normalizePolicies();
+      const tbody = document.getElementById("tbody-bonus");
+      if (!tbody) return;
+
+      tbody.innerHTML = state.bonusPolicies.length
         ? state.bonusPolicies.map((pol, idx) => {
-            const p = prodMap.get(stripLeadingZeros(pol.product_code));
+            const saleCode = stripLeadingZeros(pol.sale_code);
+            const focCode = stripLeadingZeros(pol.foc_code || pol.sale_code);
+            const saleProd = prodMap.get(saleCode);
+            const focProd = prodMap.get(focCode);
+
+            const saleLabel = `<div><span class="font-mono">${saleCode}</span> — ${saleProd ? saleProd.product_name : "Unlisted"}</div>`;
+            const focLabel = focCode === saleCode
+              ? `<span class="text-xs px-2 py-0.5 rounded bg-[#21262d] text-[#c9d1d9]">Same as Sale (${focCode})</span>`
+              : `<div><span class="font-mono text-[#3fb950]">${focCode}</span> — ${focProd ? focProd.product_name : "Unlisted"}</div>`;
+
+            const tiersHtml = (pol.tiers || []).map(t => {
+              const dateRange = (t.start_date || t.end_date)
+                ? ` <span class="text-xs text-[#8b949e]">(${t.start_date || "Any"} → ${t.end_date || "Any"})</span>`
+                : "";
+              return `<span class="inline-block mr-2 mb-1 px-2 py-0.5 rounded bg-[#0d1117] border border-[#30363d] text-xs font-mono text-[#3fb950]">${t.min_qty} + ${t.bonus_qty}${dateRange}</span>`;
+            }).join("");
+
             return `<tr>
-              <td class="font-mono">${stripLeadingZeros(pol.product_code)}</td>
-              <td>${p ? p.product_name : '-'}</td>
-              <td>${pol.min_quantity}</td>
-              <td class="text-[#3fb950] font-semibold">+${pol.bonus_quantity}</td>
+              <td>${saleLabel}</td>
+              <td>${focLabel}</td>
+              <td>${tiersHtml}</td>
               <td><button onclick="deleteBonus(${idx})" class="text-xs px-2.5 py-1 rounded bg-[#da3633] text-white">Delete</button></td>
             </tr>`;
           }).join("")
-        : `<tr><td colspan="5" class="text-center text-[#8b949e] py-4">No bonus policies configured yet.</td></tr>`;
+        : `<tr><td colspan="4" class="text-center text-[#8b949e] py-4">No bonus policies configured yet.</td></tr>`;
     }
 
     window.deleteBonus = async function(idx) {
@@ -926,16 +1119,64 @@
       e.target.value = "";
     });
 
-    document.getElementById("form-bonus").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const code = stripLeadingZeros(document.getElementById("bonus-prod-code").value);
-      const minQ = parseInt(document.getElementById("bonus-min-qty").value, 10);
-      const freeQ = parseInt(document.getElementById("bonus-free-qty").value, 10);
-      state.bonusPolicies.push({ product_code: code, min_quantity: minQ, bonus_quantity: freeQ });
+    document.getElementById("bonus-sale-select").addEventListener("change", (e) => {
+      if (e.target.value) {
+        document.getElementById("bonus-sale-code").value = e.target.value;
+      }
+    });
+
+    document.getElementById("bonus-foc-select").addEventListener("change", (e) => {
+      if (e.target.value) {
+        document.getElementById("bonus-foc-code").value = e.target.value;
+      }
+    });
+
+    document.getElementById("btn-add-tier-row").addEventListener("click", () => {
+      addDraftTierRow("", "", "", "", true);
+    });
+
+    document.getElementById("btn-save-bonus-policy").addEventListener("click", async () => {
+      const rawSale = document.getElementById("bonus-sale-code").value.trim() || document.getElementById("bonus-sale-select").value.trim();
+      if (!rawSale) {
+        showToast("Please select or enter a Sale Product first.", true);
+        return;
+      }
+      const saleCode = stripLeadingZeros(rawSale);
+      const rawFoc = document.getElementById("bonus-foc-code").value.trim() || document.getElementById("bonus-foc-select").value.trim();
+      const focCode = rawFoc ? stripLeadingZeros(rawFoc) : saleCode;
+
+      const tiers = [];
+      document.querySelectorAll("#tbody-bonus-draft-rows tr.bonus-draft-row").forEach(tr => {
+        const minQ = parseInt(tr.querySelector(".draft-min").value, 10);
+        const bonQ = parseInt(tr.querySelector(".draft-bonus").value, 10);
+        const startD = tr.querySelector(".draft-start").value || "";
+        const endD = tr.querySelector(".draft-end").value || "";
+        if (minQ > 0 && bonQ > 0) {
+          tiers.push({ min_qty: minQ, bonus_qty: bonQ, start_date: startD, end_date: endD });
+        }
+      });
+
+      if (!tiers.length) {
+        showToast("Please enter at least one valid tier row (Min Qty and Bonus Free Qty).", true);
+        return;
+      }
+
+      state.bonusPolicies = normalizePolicies();
+      state.bonusPolicies.push({
+        id: "pol_" + Date.now(),
+        sale_code: saleCode,
+        foc_code: focCode,
+        tiers
+      });
+
       await saveMasterKey("bonusPolicies", state.bonusPolicies);
-      document.getElementById("bonus-prod-code").value = "";
+      document.getElementById("bonus-sale-code").value = "";
+      document.getElementById("bonus-foc-code").value = "";
+      document.getElementById("bonus-sale-select").value = "";
+      document.getElementById("bonus-foc-select").value = "";
+      resetBonusDraftBuilder();
       refreshAllUI();
-      showToast("Bonus policy saved in browser storage.");
+      showToast(`Saved policy with ${tiers.length} tier(s) in browser storage.`);
     });
 
     document.getElementById("filter-omf-file").addEventListener("change", () => renderBookingsTable(getCustomerMap(), getProductMap()));
@@ -994,6 +1235,7 @@
         state.products = state.products || [];
         state.bonusPolicies = state.bonusPolicies || [];
       }
+      resetBonusDraftBuilder();
       refreshAllUI();
     })();
   </script>
