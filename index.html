@@ -244,9 +244,44 @@
 
     <!-- TAB: BONUS POLICIES -->
     <section id="tab-bonus" class="tab-panel hidden space-y-6">
-      <div>
-        <h2 class="text-2xl font-bold text-white">🎁 Multi-Tier & Cross-Product Bonus Policy Manager</h2>
-        <p class="text-sm text-[#8b949e]">Add multiple stacked quantity tiers (e.g., 12+1, 40+4, 120+20) in one table, press Enter to create the next row, and save once. Supports cross-product FOC bonuses (e.g., sell Brufen Plain, give Brufen DS).</p>
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-white">🎁 Multi-Tier & Cross-Product Bonus Policy Manager</h2>
+          <p class="text-sm text-[#8b949e]">Add multiple stacked quantity tiers (e.g., 12+1, 40+4, 120+20) in one table, press Enter to create the next row, or import directly from a CSV file.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btn-download-bonus-template" type="button" class="px-3.5 py-2 rounded-md bg-[#1f6feb] hover:bg-[#388bfd] text-white text-xs font-semibold">
+            📄 Download CSV Template + Tutorial
+          </button>
+        </div>
+      </div>
+
+      <!-- CSV Upload Card for Bonus Policies -->
+      <div class="card p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-base font-semibold text-white">📥 Import Bonus Policies via CSV</h3>
+          <span class="text-xs px-2 py-0.5 rounded bg-[#1f6feb]/20 text-[#58a6ff] border border-[#1f6feb]/40">Saved in Browser until Cleared</span>
+        </div>
+        <p class="text-xs text-[#8b949e]">
+          Columns: <code>sale_code, foc_code, min_qty, bonus_qty, start_date, end_date</code>. Rows sharing the same <code>sale_code</code> and <code>foc_code</code> automatically group into multi-tier stacked rules. Leave <code>foc_code</code> blank to give bonus on the same sale product.
+        </p>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="input-bonus-csv" type="file" accept=".csv" class="text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-[#238636] file:text-white hover:file:bg-[#2ea043]" />
+          <button id="btn-toggle-bonus-tutorial" type="button" class="px-3 py-1.5 rounded-md bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-xs font-medium text-[#c9d1d9]">
+            📖 View CSV Format Guide
+          </button>
+        </div>
+
+        <div id="bonus-csv-tutorial" class="hidden mt-3 p-4 rounded-lg bg-[#0d1117] border border-[#30363d] text-xs text-[#c9d1d9] space-y-2">
+          <div class="font-semibold text-white">How to Fill the Bonus Policy CSV:</div>
+          <ul class="list-disc pl-5 space-y-1 text-[#8b949e]">
+            <li><strong class="text-[#e6edf3]">sale_code:</strong> Product code being sold (leading zeros are stripped automatically, e.g. <code>001004</code> $
+ightarrow$ <code>1004</code>).</li>
+            <li><strong class="text-[#e6edf3]">foc_code:</strong> Product code given as free bonus (FOC). Leave blank or set equal to <code>sale_code</code> for same-product bonus; enter another code (e.g. Brufen DS code) for cross-product bonus.</li>
+            <li><strong class="text-[#e6edf3]">min_qty &amp; bonus_qty:</strong> Minimum quantity threshold and free bonus quantity (e.g. <code>12</code> and <code>1</code>, <code>40</code> and <code>4</code>, <code>120</code> and <code>20</code>). Multiple tiers on the same sale+FOC pair stack automatically from highest threshold down.</li>
+            <li><strong class="text-[#e6edf3]">start_date &amp; end_date:</strong> Optional dates in <code>YYYY-MM-DD</code> format (leave empty if no date restriction).</li>
+          </ul>
+        </div>
       </div>
 
       <div class="card p-5 space-y-5">
@@ -1133,6 +1168,115 @@
 
     document.getElementById("btn-add-tier-row").addEventListener("click", () => {
       addDraftTierRow("", "", "", "", true);
+    });
+
+    document.getElementById("btn-toggle-bonus-tutorial").addEventListener("click", () => {
+      document.getElementById("bonus-csv-tutorial").classList.toggle("hidden");
+    });
+
+    document.getElementById("btn-download-bonus-template").addEventListener("click", () => {
+      const templateCsv = [
+        "# BONUS POLICY CSV TEMPLATE & TUTORIAL",
+        "# 1. sale_code: Product code sold (leading zeros stripped automatically, e.g. 1004)",
+        "# 2. foc_code: Product code given as free bonus (leave blank for same product, or enter another product code for cross-product FOC like Brufen DS)",
+        "# 3. min_qty: Minimum order quantity for this tier (e.g. 12, 40, 120)",
+        "# 4. bonus_qty: Free bonus units for this tier (e.g. 1, 4, 20)",
+        "# 5. start_date: Optional start date (YYYY-MM-DD) or leave blank",
+        "# 6. end_date: Optional end date (YYYY-MM-DD) or leave blank",
+        "# Note: Rows with the same sale_code and foc_code are grouped into stacked multi-tier policies.",
+        "sale_code,foc_code,min_qty,bonus_qty,start_date,end_date",
+        "1004,,12,1,2026-01-01,2026-12-31",
+        "1004,,40,4,2026-01-01,2026-12-31",
+        "1004,,120,20,2026-01-01,2026-12-31",
+        "1001,1002,20,2,,"
+      ].join("\r\n");
+
+      const blob = new Blob([templateCsv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Bonus_Policies_Template_With_Tutorial.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Downloaded Bonus_Policies_Template_With_Tutorial.csv");
+    });
+
+    document.getElementById("input-bonus-csv").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const rawText = await file.text();
+      // Filter out comment/tutorial lines starting with '#'
+      const cleanLines = rawText
+        .split(/\r?\n/)
+        .filter(line => line.trim().length > 0 && !line.trim().startsWith("#"))
+        .join("\n");
+
+      const rows = parseCSV(cleanLines);
+      if (!rows.length) {
+        showToast("No policy rows found in CSV file.", true);
+        e.target.value = "";
+        return;
+      }
+
+      const groupedMap = new Map();
+      let importedTiersCount = 0;
+
+      for (const r of rows) {
+        const saleRaw = (r.sale_code || r.product_code || "").trim();
+        if (!saleRaw) continue;
+        const saleCode = stripLeadingZeros(saleRaw);
+        const focRaw = (r.foc_code || "").trim();
+        const focCode = focRaw ? stripLeadingZeros(focRaw) : saleCode;
+        const minQ = parseInt(r.min_qty || r.min_quantity || "0", 10);
+        const bonQ = parseInt(r.bonus_qty || r.bonus_quantity || "0", 10);
+        const startD = (r.start_date || "").trim();
+        const endD = (r.end_date || "").trim();
+
+        if (minQ > 0 && bonQ > 0) {
+          const key = `${saleCode}__${focCode}`;
+          if (!groupedMap.has(key)) {
+            groupedMap.set(key, {
+              id: "pol_csv_" + Date.now() + "_" + key,
+              sale_code: saleCode,
+              foc_code: focCode,
+              tiers: []
+            });
+          }
+          groupedMap.get(key).tiers.push({
+            min_qty: minQ,
+            bonus_qty: bonQ,
+            start_date: startD,
+            end_date: endD
+          });
+          importedTiersCount++;
+        }
+      }
+
+      if (!importedTiersCount) {
+        showToast("No valid min_qty / bonus_qty rows found in CSV.", true);
+        e.target.value = "";
+        return;
+      }
+
+      state.bonusPolicies = normalizePolicies();
+      groupedMap.forEach((newPol) => {
+        const existing = state.bonusPolicies.find(
+          p => stripLeadingZeros(p.sale_code) === newPol.sale_code &&
+               stripLeadingZeros(p.foc_code || p.sale_code) === newPol.foc_code
+        );
+        if (existing) {
+          existing.tiers = [...(existing.tiers || []), ...newPol.tiers];
+        } else {
+          state.bonusPolicies.push(newPol);
+        }
+      });
+
+      await saveMasterKey("bonusPolicies", state.bonusPolicies);
+      refreshAllUI();
+      showToast(`Imported ${importedTiersCount} bonus tier(s) into browser storage until cleared.`);
+      e.target.value = "";
     });
 
     document.getElementById("btn-save-bonus-policy").addEventListener("click", async () => {
