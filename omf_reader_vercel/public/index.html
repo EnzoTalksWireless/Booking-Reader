@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OMF Booking Reader & Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body { background-color: #0d1117; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .card { background-color: #161b22; border: 1px solid #30363d; border-radius: 10px; }
+    .nav-btn { transition: all 0.15s ease; }
+    .nav-btn.active { background-color: #238636; color: #ffffff; border-color: #2ea043; }
+    .nav-btn:not(.active) { background-color: #21262d; color: #c9d1d9; border-color: #30363d; }
+    .nav-btn:not(.active):hover { background-color: #30363d; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #30363d; padding: 10px 12px; text-align: left; font-size: 0.875rem; }
+    th { background-color: #1c2128; color: #8b949e; font-weight: 600; position: sticky; top: 0; }
+    tr:hover td { background-color: #1c2128; }
+    input, select { background-color: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; padding: 8px 12px; }
+    input:focus, select:focus { outline: none; border-color: #58a6ff; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Sticky Top Bar -->
+  <header class="sticky top-0 z-30 bg-[#161b22]/95 backdrop-blur border-b border-[#30363d] px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">📦</span>
+          <div>
+            <h1 class="text-lg font-bold text-white leading-tight">OMF Booking Suite & Analytics</h1>
+            <p class="text-xs text-[#8b949e]">100% Browser-Local • Zero Server Upload • Session-Only Bookings</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <span id="badge-master" class="px-2.5 py-1 rounded-full bg-[#1f6feb]/20 text-[#58a6ff] border border-[#1f6feb]/40">
+            Master: 0 Cust | 0 Prod
+          </span>
+          <span id="badge-session" class="px-2.5 py-1 rounded-full bg-[#238636]/20 text-[#3fb950] border border-[#238636]/40">
+            Session Bookings: 0
+          </span>
+        </div>
+      </div>
+
+      <!-- Sticky Navigation Buttons -->
+      <nav id="top-nav" class="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-1.5">
+        <button data-tab="dashboard" class="nav-btn active px-2.5 py-1.5 rounded-md border text-xs font-medium">Dashboard</button>
+        <button data-tab="import" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Import Files</button>
+        <button data-tab="bookings" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">All Bookings</button>
+        <button data-tab="customers" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Customers</button>
+        <button data-tab="products" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Products</button>
+        <button data-tab="bonus" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Bonus Policies</button>
+        <button data-tab="analytics" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Sales Analysis</button>
+        <button data-tab="validation" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Validation</button>
+        <button data-tab="export" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Export Excel</button>
+        <button data-tab="storage" class="nav-btn px-2.5 py-1.5 rounded-md border text-xs font-medium">Storage & Clear</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+    <div id="toast" class="hidden fixed bottom-5 right-5 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium"></div>
+
+    <!-- TAB: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-white">📊 Executive Dashboard</h2>
+        <p class="text-sm text-[#8b949e]">Session booking metrics computed locally in your browser. Closing this tab clears all booking data.</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Total Bookings (Session)</div><div id="kpi-bookings" class="text-2xl font-bold mt-1">0</div></div>
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Total Revenue</div><div id="kpi-revenue" class="text-2xl font-bold mt-1 text-[#3fb950]">PKR 0.00</div></div>
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Product Lines</div><div id="kpi-lines" class="text-2xl font-bold mt-1">0</div></div>
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Imported OMF Files</div><div id="kpi-files" class="text-2xl font-bold mt-1">0</div></div>
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Total Units Sold</div><div id="kpi-units" class="text-2xl font-bold mt-1">0</div></div>
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Avg Booking Value</div><div id="kpi-avg" class="text-2xl font-bold mt-1">PKR 0.00</div></div>
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Customers Loaded (Browser)</div><div id="kpi-customers" class="text-2xl font-bold mt-1 text-[#58a6ff]">0</div></div>
+        <div class="card p-4"><div class="text-xs text-[#8b949e]">Products Loaded (Browser)</div><div id="kpi-products" class="text-2xl font-bold mt-1 text-[#58a6ff]">0</div></div>
+      </div>
+    </section>
+
+    <!-- TAB: IMPORT FILES -->
+    <section id="tab-import" class="tab-panel hidden space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-white">📁 Import OMF & Master Files</h2>
+        <p class="text-sm text-[#8b949e]">Files are read directly inside your browser—nothing is ever sent to a server.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- OMF Booking Upload (Session Only) -->
+        <div class="card p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">1. Booking Files (.omf / .txt)</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-[#d29922]/20 text-[#e3b341] border border-[#d29922]/40">Clears on Tab Close</span>
+          </div>
+          <p class="text-xs text-[#8b949e]">Held only in active tab memory (<code>sessionStorage</code>). Automatically wiped when you close this tab/browser.</p>
+          <input id="input-omf" type="file" accept=".omf,.txt" multiple class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-[#238636] file:text-white hover:file:bg-[#2ea043]" />
+          <div id="omf-file-list" class="space-y-2 text-xs text-[#8b949e]"></div>
+        </div>
+
+        <!-- Master CSV Uploads (Browser Persistent until Cleared) -->
+        <div class="card p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">2. Master Files (Products & Customers CSV)</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-[#1f6feb]/20 text-[#58a6ff] border border-[#1f6feb]/40">Saved in Browser</span>
+          </div>
+          <p class="text-xs text-[#8b949e]">Stored in browser storage (<code>IndexedDB</code>) across refreshes until you explicitly click Clear Master Data.</p>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-[#c9d1d9] mb-1">Products CSV (<code>product_code, product_name, packing, company, category, trade_price</code>)</label>
+              <input id="input-products" type="file" accept=".csv" class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-[#1f6feb] file:text-white hover:file:bg-[#388bfd]" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-[#c9d1d9] mb-1">Customers CSV (<code>customer_code, customer_name, address, city, phone</code>)</label>
+              <input id="input-customers" type="file" accept=".csv" class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-[#1f6feb] file:text-white hover:file:bg-[#388bfd]" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: ALL BOOKINGS -->
+    <section id="tab-bookings" class="tab-panel hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-bold text-white">📦 Booking Explorer</h2>
+          <p class="text-sm text-[#8b949e]">Inspect imported bookings and multi-tier stacked bonuses.</p>
+        </div>
+        <select id="filter-omf-file" class="text-sm min-w-[240px]">
+          <option value="">All Imported Files</option>
+        </select>
+      </div>
+
+      <div class="card overflow-x-auto max-h-[360px]">
+        <table>
+          <thead>
+            <tr>
+              <th>Booking #</th>
+              <th>Date</th>
+              <th>Customer Code</th>
+              <th>Customer Name</th>
+              <th>Salesperson</th>
+              <th>Route</th>
+              <th>Total (PKR)</th>
+              <th>Source File</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-bookings"></tbody>
+        </table>
+      </div>
+
+      <div class="card p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-lg font-semibold text-white">🔍 Order Line Details & Multi-Tier Bonus Inspector</h3>
+          <select id="select-booking-detail" class="text-sm min-w-[300px]">
+            <option value="">Select a customer order...</option>
+          </select>
+        </div>
+        <div id="booking-detail-meta" class="text-xs text-[#8b949e]"></div>
+        <div class="overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Product Code</th>
+                <th>Product Name</th>
+                <th>Packing</th>
+                <th>Company</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Line Total</th>
+                <th>Bonus</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-booking-lines"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: CUSTOMERS -->
+    <section id="tab-customers" class="tab-panel hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-bold text-white">👥 Customer Directory</h2>
+          <p class="text-sm text-[#8b949e]">Loaded from your browser storage.</p>
+        </div>
+        <input id="search-customers" type="text" placeholder="Search by name or code..." class="text-sm w-72" />
+      </div>
+      <div class="card overflow-x-auto max-h-[520px]">
+        <table>
+          <thead>
+            <tr>
+              <th>Customer Code</th>
+              <th>Customer Name</th>
+              <th>City</th>
+              <th>Phone</th>
+              <th>Address</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-customers"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: PRODUCTS -->
+    <section id="tab-products" class="tab-panel hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-bold text-white">💊 Product Catalog</h2>
+          <p class="text-sm text-[#8b949e]">Loaded from your browser storage (leading zeros normalized automatically).</p>
+        </div>
+        <input id="search-products" type="text" placeholder="Search by product name or code..." class="text-sm w-72" />
+      </div>
+      <div class="card overflow-x-auto max-h-[520px]">
+        <table>
+          <thead>
+            <tr>
+              <th>Product Code</th>
+              <th>Product Name</th>
+              <th>Packing</th>
+              <th>Company</th>
+              <th>Category</th>
+              <th>Trade Price</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-products"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: BONUS POLICIES -->
+    <section id="tab-bonus" class="tab-panel hidden space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-white">🎁 Multi-Tier Bonus Policy Manager</h2>
+        <p class="text-sm text-[#8b949e]">Configure stacked quantity tiers (e.g., 15+1 and 40+4). Stored locally in browser until cleared.</p>
+      </div>
+
+      <form id="form-bonus" class="card p-5 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+        <div class="sm:col-span-2">
+          <label class="block text-xs text-[#8b949e] mb-1">Product Code</label>
+          <input id="bonus-prod-code" type="text" required placeholder="e.g. 1004" class="w-full text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-[#8b949e] mb-1">Min Qty</label>
+          <input id="bonus-min-qty" type="number" min="1" value="15" required class="w-full text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-[#8b949e] mb-1">Bonus Free Qty</label>
+          <input id="bonus-free-qty" type="number" min="1" value="1" required class="w-full text-sm" />
+        </div>
+        <button type="submit" class="py-2 px-4 rounded-md bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-medium">Add Policy</button>
+      </form>
+
+      <div class="card overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Product Code</th>
+              <th>Product Name</th>
+              <th>Min Quantity</th>
+              <th>Bonus Quantity</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-bonus"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: SALES ANALYSIS -->
+    <section id="tab-analytics" class="tab-panel hidden space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-white">📈 Advanced Sales Analytics</h2>
+        <p class="text-sm text-[#8b949e]">Interactive visual breakdown of current session OMF bookings.</p>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-4"><canvas id="chart-daily" height="220"></canvas></div>
+        <div class="card p-4"><canvas id="chart-salesperson" height="220"></canvas></div>
+        <div class="card p-4 lg:col-span-2"><canvas id="chart-route" height="140"></canvas></div>
+      </div>
+    </section>
+
+    <!-- TAB: DATA VALIDATION -->
+    <section id="tab-validation" class="tab-panel hidden space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-white">🔍 Data Validation & Integrity Audit</h2>
+        <p class="text-sm text-[#8b949e]">Checks session OMF bookings against your browser-loaded Customers and Products files.</p>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card p-5 space-y-3">
+          <h3 class="font-semibold text-white">Unknown Customer Codes (<span id="val-cust-count">0</span>)</h3>
+          <div class="overflow-x-auto max-h-72">
+            <table>
+              <thead><tr><th>Booking #</th><th>Customer Code</th></tr></thead>
+              <tbody id="tbody-val-cust"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card p-5 space-y-3">
+          <h3 class="font-semibold text-white">Unknown Product Codes (<span id="val-prod-count">0</span>)</h3>
+          <div class="overflow-x-auto max-h-72">
+            <table>
+              <thead><tr><th>Product Code</th></tr></thead>
+              <tbody id="tbody-val-prod"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: EXPORT EXCEL -->
+    <section id="tab-export" class="tab-panel hidden space-y-4">
+      <div class="card p-6 space-y-4 max-w-xl">
+        <h2 class="text-xl font-bold text-white">📤 Export Multi-Sheet Excel Report</h2>
+        <p class="text-sm text-[#8b949e]">Generates a complete <code>.xlsx</code> workbook directly in your browser containing Booking Summary, Booking Details (with Bonuses), Customer Summary, and Product Summary.</p>
+        <button id="btn-export-excel" class="py-2.5 px-5 rounded-md bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-semibold">
+          📥 Download OMF_Comprehensive_Report.xlsx
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB: STORAGE & CLEAR -->
+    <section id="tab-storage" class="tab-panel hidden space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-white">🧹 Browser Storage & Privacy Controls</h2>
+        <p class="text-sm text-[#8b949e]">Manage your local browser storage. No external server or permanent database is used.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="card p-5 space-y-3">
+          <h3 class="font-semibold text-white">Session Booking Data (Temporary)</h3>
+          <p class="text-xs text-[#8b949e]">Automatically cleared as soon as you close this browser tab or window. You can also clear it immediately below.</p>
+          <button id="btn-clear-session" class="py-2 px-4 rounded-md bg-[#da3633] hover:bg-[#f85149] text-white text-sm font-medium">
+            Clear Current Booking Session
+          </button>
+        </div>
+        <div class="card p-5 space-y-3">
+          <h3 class="font-semibold text-white">Master Product & Customer Storage (Persistent)</h3>
+          <p class="text-xs text-[#8b949e]">Stays saved in your browser's local storage across page reloads until you explicitly clear it here.</p>
+          <button id="btn-clear-master" class="py-2 px-4 rounded-md bg-[#da3633] hover:bg-[#f85149] text-white text-sm font-medium">
+            Clear Products, Customers & Policies
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ==========================================
+    // 1. STORAGE ARCHITECTURE (ZERO SERVER DB)
+    // - Booking data -> sessionStorage (auto-wiped on tab/browser close)
+    // - Products, Customers, Policies -> IndexedDB (persists until user clears)
+    // ==========================================
+    const SESSION_KEY = "omf_session_data_v1";
+    const DB_NAME = "omf_browser_master_db";
+    const DB_VERSION = 1;
+
+    let state = {
+      importedFiles: [],
+      bookings: [],
+      bookingDetails: [],
+      customers: [],
+      products: [],
+      bonusPolicies: []
+    };
+
+    let charts = {};
+
+    function showToast(msg, isError = false) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = `fixed bottom-5 right-5 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+        isError ? "bg-[#da3633] text-white" : "bg-[#238636] text-white"
+      }`;
+      el.classList.remove("hidden");
+      setTimeout(() => el.classList.add("hidden"), 3500);
+    }
+
+    // IndexedDB Wrapper for Master Data (Products, Customers, Bonus Policies)
+    function openMasterDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("master")) {
+            db.createObjectStore("master");
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveMasterKey(key, value) {
+      const db = await openMasterDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("master", "readwrite");
+        tx.objectStore("master").put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function loadMasterKey(key) {
+      const db = await openMasterDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("master", "readonly");
+        const req = tx.objectStore("master").get(key);
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function clearMasterStore() {
+      const db = await openMasterDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("master", "readwrite");
+        tx.objectStore("master").clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // Session Storage for Booking Data (auto-clears on tab/window close)
+    function saveSessionBookings() {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        importedFiles: state.importedFiles,
+        bookings: state.bookings,
+        bookingDetails: state.bookingDetails
+      }));
+    }
+
+    function loadSessionBookings() {
+      try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state.importedFiles = parsed.importedFiles || [];
+          state.bookings = parsed.bookings || [];
+          state.bookingDetails = parsed.bookingDetails || [];
+        }
+      } catch (e) {
+        console.warn("Session restore skipped:", e);
+      }
+    }
+
+    // ==========================================
+    // 2. CSV & OMF PARSERS (CLIENT-SIDE)
+    // ==========================================
+    function stripLeadingZeros(code) {
+      const s = String(code || "").trim().replace(/^0+/, "");
+      return s || "0";
+    }
+
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (lines.length < 2) return [];
+      const headers = parseCSVLine(lines[0]).map(h => h.trim());
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = parseCSVLine(lines[i]);
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = (vals[idx] || "").trim(); });
+        rows.push(obj);
+      }
+      return rows;
+    }
+
+    function parseCSVLine(line) {
+      const result = [];
+      let cur = "", inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+        } else if (ch === ',' && !inQuotes) {
+          result.push(cur); cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur);
+      return result;
+    }
+
+    async function sha256Text(text) {
+      const buf = new TextEncoder().encode(text);
+      const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function parseOMFContent(filename, text) {
+      const fileHash = await sha256Text(text);
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      let header = {};
+      const masterRecords = [];
+      const detailRecords = [];
+      let currentSection = null;
+
+      for (const line of lines) {
+        if (line.startsWith("[START SOMASTER]")) { currentSection = "SOMASTER"; continue; }
+        if (line.startsWith("[END SOMASTER]")) { currentSection = null; continue; }
+        if (line.startsWith("[START SODETAIL]")) { currentSection = "SODETAIL"; continue; }
+        if (line.startsWith("[END SODETAIL]")) { currentSection = null; continue; }
+
+        if (currentSection === null) {
+          const parts = line.split(",");
+          if (parts.length >= 7) {
+            header = {
+              document_type: parts[0],
+              salesperson: parts[1],
+              booking_date: parts[2],
+              sequence_id: parts[3],
+              unique_id: parts[4],
+              transaction_date: parts[5],
+              route_code: parts[6]
+            };
+          }
+        } else if (currentSection === "SOMASTER") {
+          const f = line.split("~;");
+          if (f.length >= 14) {
+            masterRecords.push({
+              booking_number: f[1],
+              file_hash: fileHash,
+              filename: filename,
+              booking_date: header.booking_date || "",
+              booking_timestamp: f[2],
+              customer_code: f[3].trim(),
+              update_timestamp: f[4],
+              booking_total: parseFloat(f[5]) || 0,
+              gps_latitude: f[7],
+              gps_longitude: f[8],
+              salesperson: f[11],
+              route_code: f[13]
+            });
+          }
+        } else if (currentSection === "SODETAIL") {
+          const f = line.split("~;");
+          if (f.length >= 12) {
+            const qty = parseInt(f[4], 10) || 0;
+            const unitPrice = parseFloat(f[5]) || 0;
+            detailRecords.push({
+              booking_number: f[1],
+              product_code: stripLeadingZeros(f[3]),
+              quantity: qty,
+              unit_price: unitPrice,
+              line_total: qty * unitPrice
+            });
+          }
+        }
+      }
+      return { fileHash, filename, header, masterRecords, detailRecords };
+    }
+
+    // ==========================================
+    // 3. BONUS CALCULATION & UI RENDERING
+    // ==========================================
+    function computeBonus(productCode, qty) {
+      const norm = stripLeadingZeros(productCode);
+      const matched = state.bonusPolicies
+        .filter(p => stripLeadingZeros(p.product_code) === norm)
+        .sort((a, b) => Number(b.min_quantity) - Number(a.min_quantity));
+
+      let totalBonus = 0;
+      let rem = Number(qty) || 0;
+      for (const pol of matched) {
+        const minQ = Number(pol.min_quantity);
+        const bonQ = Number(pol.bonus_quantity);
+        if (minQ > 0 && rem >= minQ) {
+          const mult = Math.floor(rem / minQ);
+          totalBonus += mult * bonQ;
+          rem = rem % minQ;
+        }
+      }
+      return totalBonus;
+    }
+
+    function getCustomerMap() {
+      const m = new Map();
+      state.customers.forEach(c => m.set(String(c.customer_code).trim(), c));
+      return m;
+    }
+
+    function getProductMap() {
+      const m = new Map();
+      state.products.forEach(p => m.set(stripLeadingZeros(p.product_code), p));
+      return m;
+    }
+
+    function refreshAllUI() {
+      const custMap = getCustomerMap();
+      const prodMap = getProductMap();
+
+      // Header badges & KPIs
+      document.getElementById("badge-master").textContent = `Master: ${state.customers.length} Cust | ${state.products.length} Prod`;
+      document.getElementById("badge-session").textContent = `Session Bookings: ${state.bookings.length}`;
+
+      const totalBookings = state.bookings.length;
+      const totalRev = state.bookings.reduce((acc, b) => acc + (Number(b.booking_total) || 0), 0);
+      const totalLines = state.bookingDetails.length;
+      const totalUnits = state.bookingDetails.reduce((acc, d) => acc + (Number(d.quantity) || 0), 0);
+      const avgVal = totalBookings > 0 ? totalRev / totalBookings : 0;
+
+      document.getElementById("kpi-bookings").textContent = totalBookings.toLocaleString();
+      document.getElementById("kpi-revenue").textContent = `PKR ${totalRev.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("kpi-lines").textContent = totalLines.toLocaleString();
+      document.getElementById("kpi-files").textContent = state.importedFiles.length;
+      document.getElementById("kpi-units").textContent = totalUnits.toLocaleString();
+      document.getElementById("kpi-avg").textContent = `PKR ${avgVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("kpi-customers").textContent = state.customers.length.toLocaleString();
+      document.getElementById("kpi-products").textContent = state.products.length.toLocaleString();
+
+      // Imported OMF list
+      const omfList = document.getElementById("omf-file-list");
+      omfList.innerHTML = state.importedFiles.length
+        ? state.importedFiles.map(f => `<div class="p-2 rounded bg-[#0d1117] border border-[#30363d] flex justify-between"><span>📄 ${f.filename}</span><span>${f.masterCount} orders | ${f.detailCount} lines</span></div>`).join("")
+        : `<div>No OMF booking files loaded in this session yet.</div>`;
+
+      // Filter dropdown in Bookings
+      const fileSel = document.getElementById("filter-omf-file");
+      const prevFile = fileSel.value;
+      fileSel.innerHTML = `<option value="">All Imported Files (${state.importedFiles.length})</option>` +
+        state.importedFiles.map(f => `<option value="${f.fileHash}">${f.filename}</option>`).join("");
+      fileSel.value = prevFile;
+
+      renderBookingsTable(custMap, prodMap);
+      renderCustomersTable();
+      renderProductsTable();
+      renderBonusTable(prodMap);
+      renderValidation(custMap, prodMap);
+      renderCharts();
+    }
+
+    function renderBookingsTable(custMap, prodMap) {
+      const selectedHash = document.getElementById("filter-omf-file").value;
+      const filtered = selectedHash ? state.bookings.filter(b => b.file_hash === selectedHash) : state.bookings;
+
+      const tbody = document.getElementById("tbody-bookings");
+      tbody.innerHTML = filtered.length ? filtered.map(b => {
+        const cust = custMap.get(b.customer_code);
+        return `<tr>
+          <td class="font-mono text-xs">${b.booking_number}</td>
+          <td>${b.booking_date}</td>
+          <td>${b.customer_code}</td>
+          <td>${cust ? cust.customer_name : '<span class="text-[#f85149]">Unknown</span>'}</td>
+          <td>${b.salesperson}</td>
+          <td>${b.route_code}</td>
+          <td class="font-semibold">PKR ${Number(b.booking_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+          <td class="text-xs text-[#8b949e]">${b.filename}</td>
+        </tr>`;
+      }).join("") : `<tr><td colspan="8" class="text-center text-[#8b949e] py-6">No bookings in current session. Import an .omf file first.</td></tr>`;
+
+      const detailSel = document.getElementById("select-booking-detail");
+      const prevOrder = detailSel.value;
+      detailSel.innerHTML = `<option value="">Select a customer order...</option>` +
+        filtered.map(b => {
+          const cName = custMap.get(b.customer_code)?.customer_name || b.customer_code;
+          return `<option value="${b.booking_number}">${cName} (Booking: ${b.booking_number} - ${b.booking_date})</option>`;
+        }).join("");
+      detailSel.value = prevOrder;
+      renderBookingLines(prodMap);
+    }
+
+    function renderBookingLines(prodMap = getProductMap()) {
+      const bNum = document.getElementById("select-booking-detail").value;
+      const tbody = document.getElementById("tbody-booking-lines");
+      const meta = document.getElementById("booking-detail-meta");
+      if (!bNum) {
+        meta.textContent = "";
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-[#8b949e] py-4">Select an order above to inspect product lines and stacked bonuses.</td></tr>`;
+        return;
+      }
+      const lines = state.bookingDetails.filter(d => d.booking_number === bNum);
+      meta.textContent = `Showing ${lines.length} product line(s) for Booking #${bNum}`;
+      tbody.innerHTML = lines.map(d => {
+        const p = prodMap.get(stripLeadingZeros(d.product_code));
+        const bonus = computeBonus(d.product_code, d.quantity);
+        return `<tr>
+          <td class="font-mono">${d.product_code}</td>
+          <td>${p ? p.product_name : '<span class="text-[#f85149]">Unmatched Product</span>'}</td>
+          <td>${p ? (p.packing || '-') : '-'}</td>
+          <td>${p ? (p.company || '-') : '-'}</td>
+          <td>${d.quantity}</td>
+          <td>${Number(d.unit_price).toFixed(2)}</td>
+          <td>${Number(d.line_total).toFixed(2)}</td>
+          <td class="font-bold text-[#3fb950]">${bonus > 0 ? '+' + bonus : '-'}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function renderCustomersTable() {
+      const q = document.getElementById("search-customers").value.toLowerCase();
+      const rows = state.customers.filter(c =>
+        (c.customer_name || "").toLowerCase().includes(q) ||
+        (c.customer_code || "").toLowerCase().includes(q)
+      ).slice(0, 300);
+
+      document.getElementById("tbody-customers").innerHTML = rows.length
+        ? rows.map(c => `<tr>
+            <td class="font-mono">${c.customer_code || ""}</td>
+            <td>${c.customer_name || ""}</td>
+            <td>${c.city || ""}</td>
+            <td>${c.phone || ""}</td>
+            <td class="text-xs text-[#8b949e]">${c.address || ""}</td>
+          </tr>`).join("")
+        : `<tr><td colspan="5" class="text-center text-[#8b949e] py-6">No customers loaded. Upload customers.csv in Import Files.</td></tr>`;
+    }
+
+    function renderProductsTable() {
+      const q = document.getElementById("search-products").value.toLowerCase();
+      const rows = state.products.filter(p =>
+        (p.product_name || "").toLowerCase().includes(q) ||
+        (p.product_code || "").toLowerCase().includes(q)
+      ).slice(0, 300);
+
+      document.getElementById("tbody-products").innerHTML = rows.length
+        ? rows.map(p => `<tr>
+            <td class="font-mono">${stripLeadingZeros(p.product_code)}</td>
+            <td>${p.product_name || ""}</td>
+            <td>${p.packing || ""}</td>
+            <td>${p.company || ""}</td>
+            <td>${p.category || ""}</td>
+            <td>${p.trade_price || ""}</td>
+          </tr>`).join("")
+        : `<tr><td colspan="6" class="text-center text-[#8b949e] py-6">No products loaded. Upload products.csv in Import Files.</td></tr>`;
+    }
+
+    function renderBonusTable(prodMap) {
+      document.getElementById("tbody-bonus").innerHTML = state.bonusPolicies.length
+        ? state.bonusPolicies.map((pol, idx) => {
+            const p = prodMap.get(stripLeadingZeros(pol.product_code));
+            return `<tr>
+              <td class="font-mono">${stripLeadingZeros(pol.product_code)}</td>
+              <td>${p ? p.product_name : '-'}</td>
+              <td>${pol.min_quantity}</td>
+              <td class="text-[#3fb950] font-semibold">+${pol.bonus_quantity}</td>
+              <td><button onclick="deleteBonus(${idx})" class="text-xs px-2.5 py-1 rounded bg-[#da3633] text-white">Delete</button></td>
+            </tr>`;
+          }).join("")
+        : `<tr><td colspan="5" class="text-center text-[#8b949e] py-4">No bonus policies configured yet.</td></tr>`;
+    }
+
+    window.deleteBonus = async function(idx) {
+      state.bonusPolicies.splice(idx, 1);
+      await saveMasterKey("bonusPolicies", state.bonusPolicies);
+      refreshAllUI();
+      showToast("Bonus policy removed.");
+    };
+
+    function renderValidation(custMap, prodMap) {
+      const unknownCust = state.bookings.filter(b => !custMap.has(b.customer_code));
+      const unknownProdSet = new Set();
+      state.bookingDetails.forEach(d => {
+        const norm = stripLeadingZeros(d.product_code);
+        if (!prodMap.has(norm)) unknownProdSet.add(norm);
+      });
+      const unknownProds = Array.from(unknownProdSet);
+
+      document.getElementById("val-cust-count").textContent = unknownCust.length;
+      document.getElementById("tbody-val-cust").innerHTML = unknownCust.length
+        ? unknownCust.map(b => `<tr><td>${b.booking_number}</td><td class="text-[#f85149] font-mono">${b.customer_code}</td></tr>`).join("")
+        : `<tr><td colspan="2" class="text-[#3fb950]">All booking customer codes match master records.</td></tr>`;
+
+      document.getElementById("val-prod-count").textContent = unknownProds.length;
+      document.getElementById("tbody-val-prod").innerHTML = unknownProds.length
+        ? unknownProds.map(code => `<tr><td class="text-[#f85149] font-mono">${code}</td></tr>`).join("")
+        : `<tr><td class="text-[#3fb950]">All product codes match catalog.</td></tr>`;
+    }
+
+    function renderCharts() {
+      const byDate = {}, bySP = {}, byRoute = {};
+      state.bookings.forEach(b => {
+        const val = Number(b.booking_total) || 0;
+        byDate[b.booking_date] = (byDate[b.booking_date] || 0) + val;
+        bySP[b.salesperson] = (bySP[b.salesperson] || 0) + val;
+        byRoute[b.route_code] = (byRoute[b.route_code] || 0) + val;
+      });
+
+      const draw = (id, type, label, dataObj) => {
+        if (charts[id]) charts[id].destroy();
+        const ctx = document.getElementById(id).getContext("2d");
+        charts[id] = new Chart(ctx, {
+          type,
+          data: {
+            labels: Object.keys(dataObj),
+            datasets: [{ label, data: Object.values(dataObj), backgroundColor: ["#238636", "#1f6feb", "#8957e5", "#d29922", "#da3633", "#3fb950"] }]
+          },
+          options: {
+            plugins: { legend: { labels: { color: "#c9d1d9" } }, title: { display: true, text: label, color: "#e6edf3" } },
+            scales: type === "pie" ? {} : {
+              x: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } },
+              y: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } }
+            }
+          }
+        });
+      };
+
+      draw("chart-daily", "bar", "Daily Booking Value (PKR)", byDate);
+      draw("chart-salesperson", "pie", "Salesperson Revenue Share", bySP);
+      draw("chart-route", "bar", "Route-wise Sales Performance", byRoute);
+    }
+
+    // ==========================================
+    // 4. EVENT LISTENERS
+    // ==========================================
+    document.querySelectorAll("#top-nav .nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#top-nav .nav-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const tab = btn.dataset.tab;
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+        document.getElementById(`tab-${tab}`).classList.remove("hidden");
+        if (tab === "analytics") renderCharts();
+      });
+    });
+
+    document.getElementById("input-omf").addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      let addedFiles = 0;
+      for (const file of files) {
+        const text = await file.text();
+        const parsed = await parseOMFContent(file.name, text);
+        if (state.importedFiles.some(f => f.fileHash === parsed.fileHash)) {
+          showToast(`'${file.name}' is already loaded in this session.`, true);
+          continue;
+        }
+        state.importedFiles.push({
+          filename: parsed.filename,
+          fileHash: parsed.fileHash,
+          masterCount: parsed.masterRecords.length,
+          detailCount: parsed.detailRecords.length
+        });
+        // Upsert by booking_number
+        const existingMap = new Map(state.bookings.map(b => [b.booking_number, b]));
+        parsed.masterRecords.forEach(m => existingMap.set(m.booking_number, m));
+        state.bookings = Array.from(existingMap.values());
+        state.bookingDetails.push(...parsed.detailRecords);
+        addedFiles++;
+      }
+      if (addedFiles > 0) {
+        saveSessionBookings();
+        refreshAllUI();
+        showToast(`Loaded ${addedFiles} OMF file(s) into temporary browser session.`);
+      }
+      e.target.value = "";
+    });
+
+    document.getElementById("input-products").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const rows = parseCSV(await file.text()).map(r => ({
+        ...r,
+        product_code: stripLeadingZeros(r.product_code)
+      }));
+      state.products = rows;
+      await saveMasterKey("products", rows);
+      refreshAllUI();
+      showToast(`Saved ${rows.length} products in browser storage.`);
+      e.target.value = "";
+    });
+
+    document.getElementById("input-customers").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const rows = parseCSV(await file.text());
+      state.customers = rows;
+      await saveMasterKey("customers", rows);
+      refreshAllUI();
+      showToast(`Saved ${rows.length} customers in browser storage.`);
+      e.target.value = "";
+    });
+
+    document.getElementById("form-bonus").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const code = stripLeadingZeros(document.getElementById("bonus-prod-code").value);
+      const minQ = parseInt(document.getElementById("bonus-min-qty").value, 10);
+      const freeQ = parseInt(document.getElementById("bonus-free-qty").value, 10);
+      state.bonusPolicies.push({ product_code: code, min_quantity: minQ, bonus_quantity: freeQ });
+      await saveMasterKey("bonusPolicies", state.bonusPolicies);
+      document.getElementById("bonus-prod-code").value = "";
+      refreshAllUI();
+      showToast("Bonus policy saved in browser storage.");
+    });
+
+    document.getElementById("filter-omf-file").addEventListener("change", () => renderBookingsTable(getCustomerMap(), getProductMap()));
+    document.getElementById("select-booking-detail").addEventListener("change", () => renderBookingLines());
+    document.getElementById("search-customers").addEventListener("input", renderCustomersTable);
+    document.getElementById("search-products").addEventListener("input", renderProductsTable);
+
+    document.getElementById("btn-export-excel").addEventListener("click", () => {
+      const wb = XLSX.utils.book_new();
+      const detailsWithBonus = state.bookingDetails.map(d => ({
+        ...d,
+        bonus_qty: computeBonus(d.product_code, d.quantity)
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.bookings), "Booking Summary");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailsWithBonus), "Booking Details");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.customers), "Customer Summary");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.products), "Product Summary");
+      XLSX.writeFile(wb, "OMF_Comprehensive_Report.xlsx");
+      showToast("Excel report downloaded!");
+    });
+
+    document.getElementById("btn-clear-session").addEventListener("click", () => {
+      state.importedFiles = [];
+      state.bookings = [];
+      state.bookingDetails = [];
+      sessionStorage.removeItem(SESSION_KEY);
+      refreshAllUI();
+      showToast("Current booking session cleared.");
+    });
+
+    document.getElementById("btn-clear-master").addEventListener("click", async () => {
+      state.customers = [];
+      state.products = [];
+      state.bonusPolicies = [];
+      await clearMasterStore();
+      refreshAllUI();
+      showToast("Master Products, Customers, and Bonus Policies cleared from browser.");
+    });
+
+    // Boot Application
+    (async function init() {
+      loadSessionBookings();
+      state.customers = await loadMasterKey("customers");
+      state.products = await loadMasterKey("products");
+      state.bonusPolicies = await loadMasterKey("bonusPolicies");
+      refreshAllUI();
+    })();
+  </script>
+</body>
+</html>
