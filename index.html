@@ -15,12 +15,13 @@
         <span class="brand-mark"><span></span><span></span><span></span></span>
         <span class="brand-name">Booking<span>Reader</span></span>
       </a>
-      <p class="sidebar-caption">ANALYZE · TRACK · GROW</p>
+      <div class="sidebar-mobile-head"><p class="sidebar-caption">ANALYZE · TRACK · GROW</p><button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="top-nav"><span>☰</span><span class="mobile-nav-label">Menu</span></button></div>
       <div class="sidebar-section-label">WORKSPACE</div>
       <nav id="top-nav" class="nav-strip" aria-label="Main navigation">
         <button data-tab="dashboard" class="nav-btn active"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
         <button data-tab="import" class="nav-btn"><span class="nav-icon">⇧</span><span>Import Files</span></button>
-        <button data-tab="bookings" class="nav-btn"><span class="nav-icon">▤</span><span>All Bookings</span></button>
+        <button data-tab="bookings" class="nav-btn"><span class="nav-icon">▤</span><span>Browse Bookings</span></button>
+        <button data-tab="inspector" class="nav-btn"><span class="nav-icon">⌕</span><span>Bonus Inspector</span></button>
         <button data-tab="customers" class="nav-btn"><span class="nav-icon">♙</span><span>Customers</span></button>
         <button data-tab="products" class="nav-btn"><span class="nav-icon">◇</span><span>Products</span></button>
         <button data-tab="bonus" class="nav-btn"><span class="nav-icon">✳</span><span>Bonus Policies</span></button>
@@ -143,45 +144,48 @@
       <section id="tab-bookings" class="tab-panel hidden" style="display:none;">
         <div class="page-header">
           <div>
-            <h2 class="page-title">Bookings</h2>
-            <p class="page-desc">Browse orders and inspect stacked or cross-product bonuses.</p>
+            <p class="eyebrow">ORDER REGISTER</p>
+            <h2 class="page-title">Browse Bookings</h2>
+            <p class="page-desc">Each order is presented as an invoice with its product and bonus lines.</p>
           </div>
-          <select id="filter-omf-file">
+          <select id="filter-omf-file" aria-label="Filter by imported file">
             <option value="">All Imported Files</option>
           </select>
         </div>
-
-        <div class="surface table-wrap" style="max-height:360px;margin-bottom:20px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Booking #</th><th>Date</th><th>Customer Code</th><th>Customer Name</th>
-                <th>Salesperson</th><th>Route</th><th>Total (PKR)</th><th>Source File</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-bookings"></tbody>
-          </table>
-        </div>
-
-        <div class="surface surface-pad">
-          <div class="topbar-row" style="margin-bottom:12px;">
-            <h3 style="margin:0;font-size:1rem;">Order Line & Bonus Inspector</h3>
-            <div class="status-group">
-              <button id="btn-prev-order" type="button" class="btn-secondary">◀ Prev</button>
-              <select id="select-booking-detail"><option value="">Select a customer order...</option></select>
-              <button id="btn-next-order" type="button" class="btn-secondary">Next ▶</button>
-              <span id="order-nav-counter" class="text-muted" style="font-size:0.78rem;"></span>
-            </div>
+        <div class="surface invoice-filter-panel">
+          <div class="invoice-filter-heading">
+            <div><strong>Invoice filters</strong><span id="invoice-result-count" class="text-muted">0 invoices</span></div>
+            <label class="bonus-only-control"><input id="filter-bonus-only" type="checkbox" /> <span>Bonus items only</span></label>
           </div>
-          <div id="booking-detail-meta" class="text-muted" style="font-size:0.8rem;margin-bottom:10px;"></div>
-          <div class="table-wrap">
+          <details class="company-filter" id="company-filter-details">
+            <summary><span>Filter by company</span><span id="company-filter-summary" class="company-filter-summary">All companies</span></summary>
+            <div id="company-filter-list" class="company-filter-list"><span class="text-muted">Import product catalog to load companies.</span></div>
+          </details>
+        </div>
+        <div id="invoice-list" class="invoice-list" aria-live="polite"></div>
+      </section>
+
+      <!-- ORDER LINE & BONUS INSPECTOR -->
+      <section id="tab-inspector" class="tab-panel hidden" style="display:none;">
+        <div class="page-header">
+          <div>
+            <p class="eyebrow">ORDER DETAIL WORKSPACE</p>
+            <h2 class="page-title">Order Line & Bonus Inspector</h2>
+            <p class="page-desc">Inspect calculated self-bonus and cross-product FOC for an individual order.</p>
+          </div>
+          <button id="btn-back-bookings" type="button" class="btn-secondary">← Back to invoices</button>
+        </div>
+        <div class="surface surface-pad inspector-toolbar">
+          <div class="inspector-order-controls">
+            <button id="btn-prev-order" type="button" class="btn-secondary">◀ Previous</button>
+            <select id="select-booking-detail"><option value="">Select a customer order...</option></select>
+            <button id="btn-next-order" type="button" class="btn-secondary">Next ▶</button>
+            <span id="order-nav-counter" class="text-muted" style="font-size:.78rem;"></span>
+          </div>
+          <div id="booking-detail-meta" class="text-muted" style="font-size:.82rem;margin-top:12px;"></div>
+          <div class="table-wrap" style="margin-top:14px;">
             <table>
-              <thead>
-                <tr>
-                  <th>Product Code</th><th>Product Name</th><th>Packing</th><th>Company</th>
-                  <th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Bonus</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Product Code</th><th>Product Name</th><th>Packing</th><th>Company</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Bonus</th></tr></thead>
               <tbody id="tbody-booking-lines"></tbody>
             </table>
           </div>
