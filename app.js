@@ -1011,9 +1011,6 @@
       const isOpen = sidebar.classList.toggle("mobile-nav-open");
       document.getElementById("mobile-nav-toggle").setAttribute("aria-expanded", String(isOpen));
     });
-    document.getElementById("select-booking-detail").addEventListener("change", () => renderBookingLines());
-    document.getElementById("btn-prev-order").addEventListener("click", () => stepOrderSelection(-1));
-    document.getElementById("btn-next-order").addEventListener("click", () => stepOrderSelection(1));
     document.getElementById("search-customers").addEventListener("input", renderCustomersTable);
     document.getElementById("search-products").addEventListener("input", renderProductsTable);
 
