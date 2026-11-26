@@ -483,7 +483,7 @@
             </table></div>
             <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(b.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div><button class="btn-secondary invoice-inspect-btn" type="button" data-inspect-booking="${b.booking_number}">Open Bonus Inspector ↗</button></div>
           </article>`;
-      }).join("") : "";
+      }).join("");
       document.getElementById("invoice-result-count").textContent = `${visibleCount} invoice${visibleCount===1?"":"s"}`;
       if (!visibleCount) host.innerHTML = '<div class="surface empty-invoices"><strong>No invoices match these filters.</strong><span>Try clearing a company selection or switching off “Bonus items only”.</span></div>';
 
