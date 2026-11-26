@@ -878,32 +878,38 @@
 
     function normalizeProductName(value) {
       return String(value || "").trim().toLocaleLowerCase()
-        .replace(/\\s+/g, " ")
-        .replace(/[.\\,;:!?'"()\\[\\]{}\\-_/\\\\]/g, "")
-        .replace(/\\s+/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .replace(/\s+/g, " ")
         .trim();
+    }
+
+    function escapeBonusPreview(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+      }[ch]));
     }
 
     function parsePolicyDate(value) {
       const raw = String(value || "").trim();
       if (!raw) return { value: "", error: "" };
-      let match = raw.match(/^(\\d{1,2})-(\\d{1,2})-(\\d{4})$/);
+      let match = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
       if (match) {
         const day = Number(match[1]), month = Number(match[2]), year = Number(match[3]);
         const date = new Date(Date.UTC(year, month - 1, day));
         if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
           return { value: "", error: "Invalid date" };
         }
-        return { value: `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`, error: "" };
+        return { value: year + "-" + String(month).padStart(2,"0") + "-" + String(day).padStart(2,"0"), error: "" };
       }
-      match = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/);
+      match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (match) {
         const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
         const date = new Date(Date.UTC(year, month - 1, day));
         if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
           return { value: "", error: "Invalid date" };
         }
-        return { value: `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`, error: "" };
+        return { value: year + "-" + String(month).padStart(2,"0") + "-" + String(day).padStart(2,"0"), error: "" };
       }
       return { value: "", error: "Use DD-MM-YYYY or YYYY-MM-DD" };
     }
@@ -912,7 +918,10 @@
       const wanted = normalizeProductName(itemName);
       if (!wanted) return { status: "Missing item name", matches: [] };
       const products = state.products.filter(p => String(p.product_name || "").trim());
-      const exact = products.filter(p => String(p.product_name).trim().toLocaleLowerCase().replace(/\\s+/g," ") === String(itemName).trim().toLocaleLowerCase().replace(/\\s+/g," "));
+      const exact = products.filter(p =>
+        String(p.product_name).trim().toLocaleLowerCase().replace(/\s+/g," ") ===
+        String(itemName).trim().toLocaleLowerCase().replace(/\s+/g," ")
+      );
       const matches = exact.length ? exact : products.filter(p => normalizeProductName(p.product_name) === wanted);
       if (!matches.length) return { status: "Product not found", matches: [] };
       if (matches.length > 1) return { status: "Ambiguous product name", matches };
@@ -932,18 +941,22 @@
         return;
       }
       const rows = pendingBonusCsvImport.rows;
-      const validCount = rows.filter(r => r.status.startsWith("Matched") && r.valid).length;
-      const ignoredCount = pendingBonusCsvImport.ignoredDiscounts;
+      const validCount = rows.filter(r => r.valid).length;
+      const ignoredCount = pendingBonusCsvImport.ignoredNonBonus;
       const issueCount = rows.length - validCount;
-      summary.textContent = `${validCount} bonus row(s) ready to import · ${issueCount} row(s) need attention · ${ignoredCount} discount row(s) ignored`;
+      summary.textContent = validCount + " bonus row(s) ready to import · " + issueCount +
+        " row(s) need attention · " + ignoredCount + " non-Bonus row(s) ignored";
       body.innerHTML = rows.map(r => {
-        const statusClass = r.valid && r.status.startsWith("Matched") ? "text-accent-green" : "text-accent-red";
-        const productLabel = r.product ? `${r.product.product_name} (${stripLeadingZeros(r.product.product_code)})` :
-          (r.matches.length ? r.matches.map(p => `${p.product_name} (${stripLeadingZeros(p.product_code)})`).join("; ") : "—");
-        return `<tr><td>${r.rowNumber}</td><td>${r.itemName || "—"}</td><td>${productLabel}</td><td>${r.startDate || "—"}</td><td>${r.endDate || "—"}</td><td>${r.target || "—"}</td><td>${r.bonus || "—"}</td><td>${r.status}</td></tr>`;
+        const productLabel = r.product
+          ? r.product.product_name + " (" + stripLeadingZeros(r.product.product_code) + ")"
+          : (r.matches.length ? r.matches.map(p => p.product_name + " (" + stripLeadingZeros(p.product_code) + ")").join("; ") : "—");
+        return "<tr><td>" + r.rowNumber + "</td><td>" + escapeBonusPreview(r.itemName || "—") +
+          "</td><td>" + escapeBonusPreview(productLabel) + "</td><td>" + escapeBonusPreview(r.startDate || "—") +
+          "</td><td>" + escapeBonusPreview(r.endDate || "—") + "</td><td>" + escapeBonusPreview(r.target || "—") +
+          "</td><td>" + escapeBonusPreview(r.bonus || "—") + "</td><td>" + escapeBonusPreview(r.status) + "</td></tr>";
       }).join("");
       applyBtn.disabled = validCount === 0;
-      applyBtn.textContent = `Apply ${validCount} Bonus Policy Row(s)`;
+      applyBtn.textContent = "Apply " + validCount + " Bonus Policy Row(s)";
       panel.style.display = "block";
       panel.classList.remove("hidden");
     }
@@ -953,30 +966,30 @@
       if (!file) return;
       try {
         const rawText = await file.text();
-        const cleanLines = rawText.split(/\\r?\\n/)
-          .filter(line => line.trim().length && !line.trim().startsWith("#")).join("\\n");
+        const cleanLines = rawText.split(/\r?\n/)
+          .filter(line => line.trim().length && !line.trim().startsWith("#")).join("\n");
         const rows = parseCSV(cleanLines);
         if (!rows.length) throw new Error("No policy rows found in CSV file.");
         const headerMap = Object.keys(rows[0]).reduce((map, key) => {
-          map[key.trim().toLocaleLowerCase().replace(/[_\\s]+/g, " ")] = key;
+          map[key.replace(/^\uFEFF/, "").trim().toLocaleLowerCase().replace(/[_\s]+/g, " ")] = key;
           return map;
         }, {});
         const get = (row, name) => row[headerMap[name]] ?? "";
         const required = ["start date","end date","item name","target","bonus","policy type","scheme type"];
         const missing = required.filter(key => !(key in headerMap));
-        if (missing.length) throw new Error(`Missing CSV column(s): ${missing.join(", ")}.`);
+        if (missing.length) throw new Error("Missing CSV column(s): " + missing.join(", ") + ".");
 
-        let ignoredDiscounts = 0;
+        let ignoredNonBonus = 0;
         const previewRows = [];
         rows.forEach((r, index) => {
           const policyType = String(get(r,"policy type")).trim().toLocaleLowerCase();
-          if (policyType !== "bonus") { ignoredDiscounts++; return; }
+          if (policyType !== "bonus") { ignoredNonBonus++; return; }
           const itemName = String(get(r,"item name")).trim();
           const targetRaw = String(get(r,"target")).trim();
           const bonusRaw = String(get(r,"bonus")).trim();
           const target = Number(targetRaw), bonus = Number(bonusRaw);
-          const start = parsePolicyDate(get(r,"start date"));
-          const end = parsePolicyDate(get(r,"end date"));
+          const startDate = parsePolicyDate(get(r,"start date"));
+          const endDate = parsePolicyDate(get(r,"end date"));
           const resolution = resolveBonusImportProduct(itemName);
           let status = resolution.status;
           let valid = resolution.matches.length === 1;
@@ -986,20 +999,21 @@
           if (valid && (!Number.isInteger(target) || target <= 0 || !Number.isInteger(bonus) || bonus <= 0)) {
             valid = false; status = "Target and Bonus must be positive whole numbers";
           }
-          if (valid && (start.error || end.error)) {
-            valid = false; status = start.error || end.error;
+          if (valid && (startDate.error || endDate.error)) {
+            valid = false; status = startDate.error || endDate.error;
           }
-          if (valid && start.value && end.value && start.value > end.value) {
+          if (valid && startDate.value && endDate.value && startDate.value > endDate.value) {
             valid = false; status = "Start Date is after End Date";
           }
           previewRows.push({
             rowNumber:index + 2, itemName, target:targetRaw, bonus:bonusRaw,
-            startDate:start.value, endDate:end.value, product:resolution.matches.length === 1 ? resolution.matches[0] : null,
+            startDate:startDate.value, endDate:endDate.value,
+            product:resolution.matches.length === 1 ? resolution.matches[0] : null,
             matches:resolution.matches, status, valid
           });
         });
-        if (!previewRows.length) throw new Error("No Bonus policy rows found. Discount rows are ignored.");
-        pendingBonusCsvImport = { rows:previewRows, ignoredDiscounts };
+        if (!previewRows.length) throw new Error("No Bonus policy rows found. Non-Bonus rows are ignored.");
+        pendingBonusCsvImport = { rows:previewRows, ignoredNonBonus };
         renderBonusCsvPreview();
         showToast("CSV preview ready. Review the rows, then apply to save.", false);
       } catch (error) {
@@ -1019,7 +1033,7 @@
       const groupedMap = new Map();
       validRows.forEach((r, index) => {
         const saleCode = stripLeadingZeros(r.product.product_code);
-        const key = `${saleCode}__${saleCode}`;
+        const key = saleCode + "__" + saleCode;
         if (!groupedMap.has(key)) groupedMap.set(key, {
           id: "pol_csv_" + Date.now() + "_" + index,
           sale_code:saleCode, foc_code:saleCode, tiers:[]
@@ -1042,12 +1056,13 @@
       state.bonusPolicies = mergedPolicies;
       await saveMasterKey("bonusPolicies", state.bonusPolicies);
       const importedCount = validRows.length;
-      const ignoredCount = pendingBonusCsvImport.ignoredDiscounts;
+      const ignoredCount = pendingBonusCsvImport.ignoredNonBonus;
       pendingBonusCsvImport = null;
       document.getElementById("input-bonus-csv").value = "";
       renderBonusCsvPreview();
       refreshAllUI();
-      showToast(`Applied ${importedCount} Bonus row(s). Existing policies were preserved; ${ignoredCount} non-Bonus row(s) ignored.`);
+      showToast("Applied " + importedCount + " Bonus row(s). Existing policies were preserved; " +
+        ignoredCount + " non-Bonus row(s) ignored.");
     });
 
     document.getElementById("btn-cancel-bonus-csv").addEventListener("click", () => {
