@@ -849,107 +849,227 @@
 
     document.getElementById("btn-download-bonus-template").addEventListener("click", () => {
       const templateCsv = [
-        "# BONUS POLICY CSV TEMPLATE & TUTORIAL",
-        "# 1. sale_code: Product code sold (leading zeros stripped automatically, e.g. 1004)",
-        "# 2. foc_code: Product code given as free bonus (leave blank for same product, or enter another product code for cross-product FOC like Brufen DS)",
-        "# 3. min_qty: Minimum order quantity for this tier (e.g. 12, 40, 120)",
-        "# 4. bonus_qty: Free bonus units for this tier (e.g. 1, 4, 20)",
-        "# 5. start_date: Optional start date (YYYY-MM-DD) or leave blank",
-        "# 6. end_date: Optional end date (YYYY-MM-DD) or leave blank",
-        "# Note: Rows with the same sale_code and foc_code are grouped into stacked multi-tier policies.",
-        "sale_code,foc_code,min_qty,bonus_qty,start_date,end_date",
-        "1004,,12,1,2026-01-01,2026-12-31",
-        "1004,,40,4,2026-01-01,2026-12-31",
-        "1004,,120,20,2026-01-01,2026-12-31",
-        "1001,1002,20,2,,"
+        "# BONUS POLICY CSV TEMPLATE",
+        "# Only rows with Policy Type = Bonus are imported. Discount rows are ignored.",
+        "# Start Date and End Date accept DD-MM-YYYY (e.g. 02-11-2026) or YYYY-MM-DD.",
+        "# Item Name must match a product in the imported Products catalog.",
+        "# Target is the sale quantity threshold; Bonus is the free quantity.",
+        "# Scheme Type should be Item Policy.",
+        "Start Date,End Date,Item Name,Target,Bonus,Policy Type,Scheme Type",
+        "02-11-2026,30-11-2026,LEDERPLEX 150ML,13,1,Bonus,Item Policy",
+        "02-11-2026,30-11-2026,LEDERPLEX 150ML,50,4,Bonus,Item Policy",
+        "02-11-2026,30-11-2026,LEDERPLEX 150ML,100,9,Bonus,Item Policy"
       ].join("\r\n");
 
       const blob = new Blob([templateCsv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "Bonus_Policies_Template_With_Tutorial.csv";
+      a.download = "Bonus_Policies_Name_Based_Template.csv";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast("Downloaded Bonus_Policies_Template_With_Tutorial.csv");
+      showToast("Downloaded Bonus_Policies_Name_Based_Template.csv");
     });
+
+    // CSV import is staged in memory first. Nothing is persisted until Apply is clicked.
+    let pendingBonusCsvImport = null;
+
+    function normalizeProductName(value) {
+      return String(value || "").trim().toLocaleLowerCase()
+        .replace(/\s+/g, " ")
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function escapeBonusPreview(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+      }[ch]));
+    }
+
+    function parsePolicyDate(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return { value: "", error: "" };
+      let match = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (match) {
+        const day = Number(match[1]), month = Number(match[2]), year = Number(match[3]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+          return { value: "", error: "Invalid date" };
+        }
+        return { value: year + "-" + String(month).padStart(2,"0") + "-" + String(day).padStart(2,"0"), error: "" };
+      }
+      match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (match) {
+        const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+          return { value: "", error: "Invalid date" };
+        }
+        return { value: year + "-" + String(month).padStart(2,"0") + "-" + String(day).padStart(2,"0"), error: "" };
+      }
+      return { value: "", error: "Use DD-MM-YYYY or YYYY-MM-DD" };
+    }
+
+    function resolveBonusImportProduct(itemName) {
+      const wanted = normalizeProductName(itemName);
+      if (!wanted) return { status: "Missing item name", matches: [] };
+      const products = state.products.filter(p => String(p.product_name || "").trim());
+      const exact = products.filter(p =>
+        String(p.product_name).trim().toLocaleLowerCase().replace(/\s+/g," ") ===
+        String(itemName).trim().toLocaleLowerCase().replace(/\s+/g," ")
+      );
+      const matches = exact.length ? exact : products.filter(p => normalizeProductName(p.product_name) === wanted);
+      if (!matches.length) return { status: "Product not found", matches: [] };
+      if (matches.length > 1) return { status: "Ambiguous product name", matches };
+      return { status: exact.length ? "Matched" : "Matched (normalized name)", matches };
+    }
+
+    function renderBonusCsvPreview() {
+      const panel = document.getElementById("bonus-csv-preview");
+      const body = document.getElementById("tbody-bonus-csv-preview");
+      const summary = document.getElementById("bonus-csv-preview-summary");
+      const applyBtn = document.getElementById("btn-apply-bonus-csv");
+      if (!pendingBonusCsvImport) {
+        panel.style.display = "none";
+        body.innerHTML = "";
+        applyBtn.disabled = true;
+        summary.textContent = "";
+        return;
+      }
+      const rows = pendingBonusCsvImport.rows;
+      const validCount = rows.filter(r => r.valid).length;
+      const ignoredCount = pendingBonusCsvImport.ignoredNonBonus;
+      const issueCount = rows.length - validCount;
+      summary.textContent = validCount + " bonus row(s) ready to import · " + issueCount +
+        " row(s) need attention · " + ignoredCount + " non-Bonus row(s) ignored";
+      body.innerHTML = rows.map(r => {
+        const productLabel = r.product
+          ? r.product.product_name + " (" + stripLeadingZeros(r.product.product_code) + ")"
+          : (r.matches.length ? r.matches.map(p => p.product_name + " (" + stripLeadingZeros(p.product_code) + ")").join("; ") : "—");
+        return "<tr><td>" + r.rowNumber + "</td><td>" + escapeBonusPreview(r.itemName || "—") +
+          "</td><td>" + escapeBonusPreview(productLabel) + "</td><td>" + escapeBonusPreview(r.startDate || "—") +
+          "</td><td>" + escapeBonusPreview(r.endDate || "—") + "</td><td>" + escapeBonusPreview(r.target || "—") +
+          "</td><td>" + escapeBonusPreview(r.bonus || "—") + "</td><td>" + escapeBonusPreview(r.status) + "</td></tr>";
+      }).join("");
+      applyBtn.disabled = validCount === 0;
+      applyBtn.textContent = "Apply " + validCount + " Bonus Policy Row(s)";
+      panel.style.display = "block";
+      panel.classList.remove("hidden");
+    }
 
     document.getElementById("input-bonus-csv").addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const rawText = await file.text();
-      // Filter out comment/tutorial lines starting with '#'
-      const cleanLines = rawText
-        .split(/\r?\n/)
-        .filter(line => line.trim().length > 0 && !line.trim().startsWith("#"))
-        .join("\n");
+      try {
+        const rawText = await file.text();
+        const cleanLines = rawText.split(/\r?\n/)
+          .filter(line => line.trim().length && !line.trim().startsWith("#")).join("\n");
+        const rows = parseCSV(cleanLines);
+        if (!rows.length) throw new Error("No policy rows found in CSV file.");
+        const headerMap = Object.keys(rows[0]).reduce((map, key) => {
+          map[key.replace(/^\uFEFF/, "").trim().toLocaleLowerCase().replace(/[_\s]+/g, " ")] = key;
+          return map;
+        }, {});
+        const get = (row, name) => row[headerMap[name]] ?? "";
+        const required = ["start date","end date","item name","target","bonus","policy type","scheme type"];
+        const missing = required.filter(key => !(key in headerMap));
+        if (missing.length) throw new Error("Missing CSV column(s): " + missing.join(", ") + ".");
 
-      const rows = parseCSV(cleanLines);
-      if (!rows.length) {
-        showToast("No policy rows found in CSV file.", true);
-        e.target.value = "";
-        return;
-      }
-
-      const groupedMap = new Map();
-      let importedTiersCount = 0;
-
-      for (const r of rows) {
-        const saleRaw = (r.sale_code || r.product_code || "").trim();
-        if (!saleRaw) continue;
-        const saleCode = stripLeadingZeros(saleRaw);
-        const focRaw = (r.foc_code || "").trim();
-        const focCode = focRaw ? stripLeadingZeros(focRaw) : saleCode;
-        const minQ = parseInt(r.min_qty || r.min_quantity || "0", 10);
-        const bonQ = parseInt(r.bonus_qty || r.bonus_quantity || "0", 10);
-        const startD = (r.start_date || "").trim();
-        const endD = (r.end_date || "").trim();
-
-        if (minQ > 0 && bonQ > 0) {
-          const key = `${saleCode}__${focCode}`;
-          if (!groupedMap.has(key)) {
-            groupedMap.set(key, {
-              id: "pol_csv_" + Date.now() + "_" + key,
-              sale_code: saleCode,
-              foc_code: focCode,
-              tiers: []
-            });
+        let ignoredNonBonus = 0;
+        const previewRows = [];
+        rows.forEach((r, index) => {
+          const policyType = String(get(r,"policy type")).trim().toLocaleLowerCase();
+          if (policyType !== "bonus") { ignoredNonBonus++; return; }
+          const itemName = String(get(r,"item name")).trim();
+          const targetRaw = String(get(r,"target")).trim();
+          const bonusRaw = String(get(r,"bonus")).trim();
+          const target = Number(targetRaw), bonus = Number(bonusRaw);
+          const startDate = parsePolicyDate(get(r,"start date"));
+          const endDate = parsePolicyDate(get(r,"end date"));
+          const resolution = resolveBonusImportProduct(itemName);
+          let status = resolution.status;
+          let valid = resolution.matches.length === 1;
+          if (valid && String(get(r,"scheme type")).trim().toLocaleLowerCase() !== "item policy") {
+            valid = false; status = "Unsupported scheme type (expected Item Policy)";
           }
-          groupedMap.get(key).tiers.push({
-            min_qty: minQ,
-            bonus_qty: bonQ,
-            start_date: startD,
-            end_date: endD
+          if (valid && (!Number.isInteger(target) || target <= 0 || !Number.isInteger(bonus) || bonus <= 0)) {
+            valid = false; status = "Target and Bonus must be positive whole numbers";
+          }
+          if (valid && (startDate.error || endDate.error)) {
+            valid = false; status = startDate.error || endDate.error;
+          }
+          if (valid && startDate.value && endDate.value && startDate.value > endDate.value) {
+            valid = false; status = "Start Date is after End Date";
+          }
+          previewRows.push({
+            rowNumber:index + 2, itemName, target:targetRaw, bonus:bonusRaw,
+            startDate:startDate.value, endDate:endDate.value,
+            product:resolution.matches.length === 1 ? resolution.matches[0] : null,
+            matches:resolution.matches, status, valid
           });
-          importedTiersCount++;
-        }
+        });
+        if (!previewRows.length) throw new Error("No Bonus policy rows found. Non-Bonus rows are ignored.");
+        pendingBonusCsvImport = { rows:previewRows, ignoredNonBonus };
+        renderBonusCsvPreview();
+        showToast("CSV preview ready. Review the rows, then apply to save.", false);
+      } catch (error) {
+        pendingBonusCsvImport = null;
+        renderBonusCsvPreview();
+        showToast(error.message || "Could not read the Bonus CSV.", true);
       }
+    });
 
-      if (!importedTiersCount) {
-        showToast("No valid min_qty / bonus_qty rows found in CSV.", true);
-        e.target.value = "";
+    document.getElementById("btn-apply-bonus-csv").addEventListener("click", async () => {
+      if (!pendingBonusCsvImport) return;
+      const validRows = pendingBonusCsvImport.rows.filter(r => r.valid && r.product);
+      if (!validRows.length) {
+        showToast("There are no valid Bonus rows to apply.", true);
         return;
       }
-
-      state.bonusPolicies = normalizePolicies();
-      groupedMap.forEach((newPol) => {
-        const existing = state.bonusPolicies.find(
-          p => stripLeadingZeros(p.sale_code) === newPol.sale_code &&
-               stripLeadingZeros(p.foc_code || p.sale_code) === newPol.foc_code
-        );
-        if (existing) {
-          existing.tiers = [...(existing.tiers || []), ...newPol.tiers];
-        } else {
-          state.bonusPolicies.push(newPol);
-        }
+      const groupedMap = new Map();
+      validRows.forEach((r, index) => {
+        const saleCode = stripLeadingZeros(r.product.product_code);
+        const key = saleCode + "__" + saleCode;
+        if (!groupedMap.has(key)) groupedMap.set(key, {
+          id: "pol_csv_" + Date.now() + "_" + index,
+          sale_code:saleCode, foc_code:saleCode, tiers:[]
+        });
+        groupedMap.get(key).tiers.push({
+          min_qty:Number(r.target), bonus_qty:Number(r.bonus),
+          start_date:r.startDate, end_date:r.endDate
+        });
       });
 
+      const mergedPolicies = normalizePolicies();
+      groupedMap.forEach(newPolicy => {
+        const existing = mergedPolicies.find(p =>
+          stripLeadingZeros(p.sale_code) === newPolicy.sale_code &&
+          stripLeadingZeros(p.foc_code || p.sale_code) === newPolicy.foc_code
+        );
+        if (existing) existing.tiers = [...(existing.tiers || []), ...newPolicy.tiers];
+        else mergedPolicies.push(newPolicy);
+      });
+      state.bonusPolicies = mergedPolicies;
       await saveMasterKey("bonusPolicies", state.bonusPolicies);
+      const importedCount = validRows.length;
+      const ignoredCount = pendingBonusCsvImport.ignoredNonBonus;
+      pendingBonusCsvImport = null;
+      document.getElementById("input-bonus-csv").value = "";
+      renderBonusCsvPreview();
       refreshAllUI();
-      showToast(`Imported ${importedTiersCount} bonus tier(s) into browser storage until cleared.`);
-      e.target.value = "";
+      showToast("Applied " + importedCount + " Bonus row(s). Existing policies were preserved; " +
+        ignoredCount + " non-Bonus row(s) ignored.");
+    });
+
+    document.getElementById("btn-cancel-bonus-csv").addEventListener("click", () => {
+      pendingBonusCsvImport = null;
+      document.getElementById("input-bonus-csv").value = "";
+      renderBonusCsvPreview();
+      showToast("CSV preview discarded. No policies were changed.");
     });
 
     document.getElementById("bonus-sale-company-filter").addEventListener("change", () => populateBonusProductDropdowns(getProductMap()));

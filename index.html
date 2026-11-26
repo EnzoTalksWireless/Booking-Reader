@@ -214,17 +214,34 @@
             <span class="pill pill-primary">Persists Until Cleared</span>
           </div>
           <p class="page-desc" style="margin-bottom:12px;">
-            Columns: <code>sale_code, foc_code, min_qty, bonus_qty, start_date, end_date</code>. Matching sale + FOC pairs group into stacked tiers automatically.
+            Upload a name-based CSV. The app matches <strong>Item Name</strong> with your Products catalog and shows a review preview. Nothing is saved until you click Apply.
           </p>
           <div class="status-group">
             <input id="input-bonus-csv" type="file" accept=".csv" />
             <button id="btn-toggle-bonus-tutorial" type="button" class="btn-secondary">CSV Format Guide</button>
           </div>
           <div id="bonus-csv-tutorial" class="hidden" style="display:none;margin-top:12px;padding:12px;border-radius:8px;background:var(--bg-subtle);font-size:0.8rem;color:var(--text-secondary);">
-            <div><strong>sale_code:</strong> Product sold (leading zeros stripped).</div>
-            <div><strong>foc_code:</strong> Bonus product given (leave blank for same product, or enter another code such as Brufen DS).</div>
-            <div><strong>min_qty &amp; bonus_qty:</strong> Quantity threshold and free units (e.g. 12+1, 40+4, 120+20).</div>
-            <div><strong>start_date &amp; end_date:</strong> Optional YYYY-MM-DD date window.</div>
+            <div><strong>Required columns:</strong> Start Date, End Date, Item Name, Target, Bonus, Policy Type, Scheme Type.</div>
+            <div><strong>Item Name:</strong> Must match a product name in your imported Products catalog. Ambiguous names are flagged for review.</div>
+            <div><strong>Target / Bonus:</strong> Sale quantity threshold and free bonus quantity (e.g. 13 + 1, 50 + 4).</div>
+            <div><strong>Dates:</strong> DD-MM-YYYY or YYYY-MM-DD. Leave blank for no date limit.</div>
+            <div><strong>Policy Type / Scheme Type:</strong> Only Bonus + Item Policy rows are imported. Discount rows are ignored.</div>
+          </div>
+          <div id="bonus-csv-preview" class="surface surface-pad" style="display:none;margin-top:14px;">
+            <div class="topbar-row" style="margin-bottom:10px;gap:12px;flex-wrap:wrap;">
+              <strong>CSV Import Preview</strong>
+              <span id="bonus-csv-preview-summary" class="text-muted"></span>
+            </div>
+            <div class="table-wrap" style="max-height:360px;">
+              <table>
+                <thead><tr><th>CSV Row</th><th>Item Name</th><th>Matched Product / Code</th><th>Start</th><th>End</th><th>Target</th><th>Bonus</th><th>Status</th></tr></thead>
+                <tbody id="tbody-bonus-csv-preview"></tbody>
+              </table>
+            </div>
+            <div class="topbar-row" style="margin-top:12px;justify-content:flex-end;gap:8px;">
+              <button id="btn-cancel-bonus-csv" type="button" class="btn-secondary">Cancel Import</button>
+              <button id="btn-apply-bonus-csv" type="button" class="btn-primary" disabled>Apply Bonus Policies</button>
+            </div>
           </div>
         </div>
 
