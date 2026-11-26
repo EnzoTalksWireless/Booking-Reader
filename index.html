@@ -10,36 +10,51 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="topbar-row">
-          <div>
-            <h1 class="brand-title">OMF Booking Suite</h1>
-            <p class="brand-subtitle">Minimalist Browser Workspace · Local Master Storage · Session Bookings</p>
-          </div>
-          <div class="status-group">
-            <span id="badge-master" class="pill pill-primary">Master: 0 Cust | 0 Prod</span>
-            <span id="badge-session" class="pill pill-success">Session Bookings: 0</span>
-            <button id="btn-theme-toggle" type="button" class="btn-secondary">☾ Dark</button>
+    <aside class="sidebar">
+      <a class="brand-lockup" href="#" aria-label="Booking Reader dashboard">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <span class="brand-name">Booking<span>Reader</span></span>
+      </a>
+      <p class="sidebar-caption">ANALYZE · TRACK · GROW</p>
+      <div class="sidebar-section-label">WORKSPACE</div>
+      <nav id="top-nav" class="nav-strip" aria-label="Main navigation">
+        <button data-tab="dashboard" class="nav-btn active"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
+        <button data-tab="import" class="nav-btn"><span class="nav-icon">⇧</span><span>Import Files</span></button>
+        <button data-tab="bookings" class="nav-btn"><span class="nav-icon">▤</span><span>All Bookings</span></button>
+        <button data-tab="customers" class="nav-btn"><span class="nav-icon">♙</span><span>Customers</span></button>
+        <button data-tab="products" class="nav-btn"><span class="nav-icon">◇</span><span>Products</span></button>
+        <button data-tab="bonus" class="nav-btn"><span class="nav-icon">✳</span><span>Bonus Policies</span></button>
+        <button data-tab="analytics" class="nav-btn"><span class="nav-icon">▥</span><span>Sales Analysis</span></button>
+        <button data-tab="validation" class="nav-btn"><span class="nav-icon">✓</span><span>Validation</span></button>
+        <button data-tab="export" class="nav-btn"><span class="nav-icon">⇩</span><span>Export Excel</span></button>
+        <button data-tab="storage" class="nav-btn"><span class="nav-icon">▦</span><span>Storage</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="system-status"><span class="status-dot"></span><div><strong>Ready to work</strong><small>Local browser workspace</small></div></div>
+        <div class="sidebar-footnote">OMF BOOKING READER<br>Private · Device-based storage</div>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="welcome-block">
+            <div>
+              <p class="eyebrow">BOOKING WORKSPACE</p>
+              <h1 class="brand-title">Your booking overview</h1>
+              <p class="brand-subtitle">Everything you need to review, manage and analyze your orders.</p>
+            </div>
+            <div class="header-actions">
+              <div class="status-group">
+                <span id="badge-master" class="pill pill-primary">Master: 0 Cust | 0 Prod</span>
+                <span id="badge-session" class="pill pill-success">Session Bookings: 0</span>
+              </div>
+              <button id="btn-theme-toggle" type="button" class="theme-toggle" aria-label="Switch to dark mode" title="Switch theme"><span class="theme-icon">☾</span><span class="theme-label">Dark mode</span></button>
+            </div>
           </div>
         </div>
+      </header>
 
-        <nav id="top-nav" class="nav-strip">
-          <button data-tab="dashboard" class="nav-btn active">Dashboard</button>
-          <button data-tab="import" class="nav-btn">Import Files</button>
-          <button data-tab="bookings" class="nav-btn">All Bookings</button>
-          <button data-tab="customers" class="nav-btn">Customers</button>
-          <button data-tab="products" class="nav-btn">Products</button>
-          <button data-tab="bonus" class="nav-btn">Bonus Policies</button>
-          <button data-tab="analytics" class="nav-btn">Sales Analysis</button>
-          <button data-tab="validation" class="nav-btn">Validation</button>
-          <button data-tab="export" class="nav-btn">Export Excel</button>
-          <button data-tab="storage" class="nav-btn">Storage & Clear</button>
-        </nav>
-      </div>
-    </header>
-
-    <main class="main-container">
+      <main class="main-container">
       <div id="toast" class="toast-box hidden" style="display:none;"></div>
 
       <!-- DASHBOARD -->
@@ -59,6 +74,29 @@
           <div class="surface surface-pad"><div class="kpi-label">Avg Booking Value</div><div id="kpi-avg" class="kpi-value">PKR 0.00</div></div>
           <div class="surface surface-pad"><div class="kpi-label">Customers Saved</div><div id="kpi-customers" class="kpi-value text-accent-blue">0</div></div>
           <div class="surface surface-pad"><div class="kpi-label">Products Saved</div><div id="kpi-products" class="kpi-value text-accent-blue">0</div></div>
+        </div>
+        <div class="dashboard-lower">
+          <section class="surface quick-panel">
+            <div class="section-heading">
+              <div><p class="eyebrow">GET STARTED</p><h3>Quick actions</h3></div>
+              <span class="section-mark">✦</span>
+            </div>
+            <div class="quick-grid">
+              <button class="quick-action" data-tab="import"><span class="quick-icon blue">⇧</span><span><strong>Import booking files</strong><small>Load OMF or CSV master data</small></span><span class="quick-arrow">↗</span></button>
+              <button class="quick-action" data-tab="bookings"><span class="quick-icon mint">▤</span><span><strong>Browse bookings</strong><small>Inspect orders and bonus lines</small></span><span class="quick-arrow">↗</span></button>
+              <button class="quick-action" data-tab="bonus"><span class="quick-icon violet">✳</span><span><strong>Manage bonus policies</strong><small>Create tiers and FOC rules</small></span><span class="quick-arrow">↗</span></button>
+              <button class="quick-action" data-tab="analytics"><span class="quick-icon amber">▥</span><span><strong>Open sales analysis</strong><small>Review routes and sales trends</small></span><span class="quick-arrow">↗</span></button>
+            </div>
+          </section>
+          <section class="surface workspace-note">
+            <div class="section-heading">
+              <div><p class="eyebrow">YOUR DATA</p><h3>Private by design</h3></div>
+              <span class="privacy-icon">⌑</span>
+            </div>
+            <p>Booking files stay in this browser session. Your customer catalog, product catalog and bonus policies are saved in this browser until you clear them.</p>
+            <div class="note-footer"><span class="status-dot"></span> Stored locally on this device</div>
+            <button class="text-link nav-btn" data-tab="storage">Manage storage <span>→</span></button>
+          </section>
         </div>
       </section>
 
@@ -332,7 +370,8 @@
           </div>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   </div>
 
   <script src="app.js"></script>
