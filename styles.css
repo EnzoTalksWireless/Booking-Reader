@@ -177,3 +177,27 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
  .inspector-order-controls select{grid-column:1/-1;grid-row:1;min-width:0}
  .inspector-order-controls #order-nav-counter{grid-column:1/-1}
 }
+
+/* Single-invoice browsing and transitions */
+.invoice-navigation{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:11px 13px;border:1px solid var(--border-subtle);border-radius:13px;background:var(--bg-surface);box-shadow:var(--shadow-sm)}
+.invoice-navigation button{min-width:112px}
+.invoice-navigation button:disabled{opacity:.4;cursor:not-allowed}
+.invoice-position{font-size:.8rem;font-weight:800;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.invoice-list{display:block}
+.invoice-card{width:100%}
+@keyframes invoiceSlideNext{from{opacity:0;transform:translateX(42px)}to{opacity:1;transform:translateX(0)}}
+@keyframes invoiceSlidePrev{from{opacity:0;transform:translateX(-42px)}to{opacity:1;transform:translateX(0)}}
+.invoice-enter-next{animation:invoiceSlideNext .28s cubic-bezier(.2,.7,.25,1) both}
+.invoice-enter-prev{animation:invoiceSlidePrev .28s cubic-bezier(.2,.7,.25,1) both}
+.invoice-enter-none{animation:none}
+@media(max-width:760px){
+ .mobile-nav-toggle{position:fixed;right:16px;bottom:18px;top:auto;z-index:1200;padding:13px 17px;border-radius:999px;box-shadow:0 8px 26px rgba(0,0,0,.28);background:var(--primary);border-color:transparent;color:#fff}
+ .sidebar.mobile-nav-open .nav-strip{display:flex;position:fixed;left:12px;right:12px;bottom:78px;top:auto;z-index:1199;max-height:65vh;overflow-y:auto;padding:12px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:16px;box-shadow:0 16px 45px rgba(0,0,0,.32)}
+ .sidebar.mobile-nav-open .nav-btn{color:var(--text-primary);background:transparent}
+ .sidebar.mobile-nav-open .nav-btn.active{background:var(--bg-elevated);color:var(--primary)}
+ .invoice-navigation{position:sticky;bottom:8px;z-index:30;margin:14px 0;padding:9px;background:color-mix(in srgb,var(--bg-surface) 92%,transparent);backdrop-filter:blur(14px)}
+ .invoice-navigation button{min-width:0;flex:1;padding:10px 8px}
+ .invoice-position{min-width:48px;text-align:center}
+ .invoice-card{will-change:transform,opacity}
+}
+@media(prefers-reduced-motion:reduce){.invoice-enter-next,.invoice-enter-prev{animation:none!important;scroll-behavior:auto!important}}
