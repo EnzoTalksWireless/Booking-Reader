@@ -509,20 +509,12 @@
               <thead><tr><th>Item description</th><th>Company</th><th class="numeric-cell">Qty</th><th class="numeric-cell">Unit price</th><th class="numeric-cell">Amount</th></tr></thead>
               <tbody>${lineRows}</tbody>
             </table></div>
-            <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(booking.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div><button class="btn-secondary invoice-inspect-btn" type="button" data-inspect-booking="${booking.booking_number}">Open Bonus Inspector ↗</button></div>
+            <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(booking.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div></div>
           </article>`;
         lastInvoiceKey = String(booking.booking_number);
       }
 
-      const detailSel = document.getElementById("select-booking-detail");
-      const prevOrder = detailSel.value;
-      detailSel.innerHTML = `<option value="">Select a customer order...</option>` +
-        filtered.map(b => {
-          const cName = custMap.get(b.customer_code)?.customer_name || b.customer_code;
-          return `<option value="${b.booking_number}">${cName} (Booking: ${b.booking_number} - ${b.booking_date})</option>`;
-        }).join("");
-      detailSel.value = prevOrder;
-      renderBookingLines(prodMap);
+
     }
 
     function stepInvoice(direction) {
@@ -533,85 +525,6 @@
       currentInvoiceIndex = next;
       renderBookingsTable(getCustomerMap(), getProductMap(), direction);
       document.getElementById("invoice-list").scrollIntoView({behavior:"smooth",block:"start"});
-    }
-
-    function updateOrderNavControls() {
-      const sel = document.getElementById("select-booking-detail");
-      const prevBtn = document.getElementById("btn-prev-order");
-      const nextBtn = document.getElementById("btn-next-order");
-      const counter = document.getElementById("order-nav-counter");
-      const totalOrders = sel.options.length - 1; // exclude placeholder option
-      const idx = sel.selectedIndex; // 0 is placeholder, 1..totalOrders are bookings
-
-      if (totalOrders <= 0) {
-        prevBtn.disabled = true;
-        nextBtn.disabled = true;
-        counter.textContent = "0 / 0";
-        return;
-      }
-
-      if (idx <= 0) {
-        prevBtn.disabled = true;
-        nextBtn.disabled = false;
-        counter.textContent = `0 / ${totalOrders}`;
-      } else {
-        prevBtn.disabled = idx <= 1;
-        nextBtn.disabled = idx >= totalOrders;
-        counter.textContent = `${idx} / ${totalOrders}`;
-      }
-    }
-
-    function stepOrderSelection(delta) {
-      const sel = document.getElementById("select-booking-detail");
-      const totalOrders = sel.options.length - 1;
-      if (totalOrders <= 0) return;
-
-      let nextIdx = sel.selectedIndex + delta;
-      if (sel.selectedIndex <= 0 && delta > 0) {
-        nextIdx = 1; // jump to first order when clicking Next from placeholder
-      }
-      if (nextIdx >= 1 && nextIdx <= totalOrders) {
-        sel.selectedIndex = nextIdx;
-        renderBookingLines();
-      }
-    }
-
-    function renderBookingLines(prodMap = getProductMap()) {
-      updateOrderNavControls();
-      const bNum = document.getElementById("select-booking-detail").value;
-      const tbody = document.getElementById("tbody-booking-lines");
-      const meta = document.getElementById("booking-detail-meta");
-      if (!bNum) {
-        meta.textContent = "";
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-[#8b949e] py-4">Select an order above or use Next ▶ to inspect product lines and stacked bonuses.</td></tr>`;
-        return;
-      }
-      const lines = state.bookingDetails.filter(d => d.booking_number === bNum);
-      meta.textContent = `Showing ${lines.length} product line(s) for Booking #${bNum}`;
-      tbody.innerHTML = lines.map(d => {
-        const p = prodMap.get(stripLeadingZeros(d.product_code));
-        const bookingObj = state.bookings.find(b => b.booking_number === bNum);
-        const orderDate = bookingObj ? bookingObj.booking_date : "";
-        const bInfo = computeLineBonuses(d.product_code, d.quantity, orderDate);
-        const parts = [];
-        if (bInfo.selfBonus > 0) parts.push(`+${bInfo.selfBonus}`);
-        bInfo.crossBonuses.forEach(cb => {
-          const focProd = prodMap.get(stripLeadingZeros(cb.foc_code));
-          const focLabel = focProd ? focProd.product_name : cb.foc_code;
-          parts.push(`+${cb.qty} FOC (${focLabel})`);
-        });
-        const bonusText = parts.length ? parts.join(" | ") : "-";
-        return `<tr>
-          <td class="font-mono">${d.product_code}</td>
-          <td>${p ? p.product_name : '<span class="text-[#f85149]">Unmatched Product</span>'}</td>
-          <td>${p ? (p.packing || '-') : '-'}</td>
-          <td>${p ? (p.company || '-') : '-'}</td>
-          <td>${d.quantity}</td>
-          <td>${Number(d.unit_price).toFixed(2)}</td>
-          <td>${Number(d.line_total).toFixed(2)}</td>
-          <td class="font-bold text-[#3fb950]">${bonusText}</td>
-        </tr>`;
-      }).join("");
     }
 
     function renderCustomersTable() {
@@ -850,13 +763,6 @@
       document.querySelector(".sidebar")?.classList.remove("mobile-nav-open");
       document.getElementById("mobile-nav-toggle")?.setAttribute("aria-expanded","false");
       if (tab === "analytics") renderCharts();
-    }
-
-    function openInspector(bookingNumber) {
-      activateTab("inspector");
-      const select = document.getElementById("select-booking-detail");
-      select.value = String(bookingNumber);
-      renderBookingLines();
     }
 
     document.querySelectorAll(".nav-btn[data-tab], .quick-action[data-tab]").forEach(btn => {
@@ -1100,20 +1006,11 @@
       renderBookingsTable(getCustomerMap(), getProductMap());
     });
     document.getElementById("filter-bonus-only").addEventListener("change", () => { currentInvoiceIndex = 0; lastInvoiceKey = ""; renderBookingsTable(getCustomerMap(), getProductMap()); });
-    document.getElementById("invoice-list").addEventListener("click", (event) => {
-      const button = event.target.closest("[data-inspect-booking]");
-      if (!button) return;
-      openInspector(button.dataset.inspectBooking);
-    });
-    document.getElementById("btn-back-bookings").addEventListener("click", () => activateTab("bookings"));
     document.getElementById("mobile-nav-toggle").addEventListener("click", () => {
       const sidebar = document.querySelector(".sidebar");
       const isOpen = sidebar.classList.toggle("mobile-nav-open");
       document.getElementById("mobile-nav-toggle").setAttribute("aria-expanded", String(isOpen));
     });
-    document.getElementById("select-booking-detail").addEventListener("change", () => renderBookingLines());
-    document.getElementById("btn-prev-order").addEventListener("click", () => stepOrderSelection(-1));
-    document.getElementById("btn-next-order").addEventListener("click", () => stepOrderSelection(1));
     document.getElementById("search-customers").addEventListener("input", renderCustomersTable);
     document.getElementById("search-products").addEventListener("input", renderProductsTable);
 

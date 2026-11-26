@@ -21,7 +21,6 @@
         <button data-tab="dashboard" class="nav-btn active"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
         <button data-tab="import" class="nav-btn"><span class="nav-icon">⇧</span><span>Import Files</span></button>
         <button data-tab="bookings" class="nav-btn"><span class="nav-icon">▤</span><span>Browse Bookings</span></button>
-        <button data-tab="inspector" class="nav-btn"><span class="nav-icon">⌕</span><span>Bonus Inspector</span></button>
         <button data-tab="customers" class="nav-btn"><span class="nav-icon">♙</span><span>Customers</span></button>
         <button data-tab="products" class="nav-btn"><span class="nav-icon">◇</span><span>Products</span></button>
         <button data-tab="bonus" class="nav-btn"><span class="nav-icon">✳</span><span>Bonus Policies</span></button>
@@ -163,33 +162,6 @@
           </details>
         </div>
         <div class="invoice-navigation" id="invoice-navigation" aria-label="Invoice navigation"><button id="invoice-prev" class="btn-secondary" type="button">← Previous</button><span id="invoice-position" class="invoice-position">0 / 0</span><button id="invoice-next" class="btn-primary" type="button">Next →</button></div><div id="invoice-list" class="invoice-list" aria-live="polite"></div>
-      </section>
-
-      <!-- ORDER LINE & BONUS INSPECTOR -->
-      <section id="tab-inspector" class="tab-panel hidden" style="display:none;">
-        <div class="page-header">
-          <div>
-            <p class="eyebrow">ORDER DETAIL WORKSPACE</p>
-            <h2 class="page-title">Order Line & Bonus Inspector</h2>
-            <p class="page-desc">Inspect calculated self-bonus and cross-product FOC for an individual order.</p>
-          </div>
-          <button id="btn-back-bookings" type="button" class="btn-secondary">← Back to invoices</button>
-        </div>
-        <div class="surface surface-pad inspector-toolbar">
-          <div class="inspector-order-controls">
-            <button id="btn-prev-order" type="button" class="btn-secondary">◀ Previous</button>
-            <select id="select-booking-detail"><option value="">Select a customer order...</option></select>
-            <button id="btn-next-order" type="button" class="btn-secondary">Next ▶</button>
-            <span id="order-nav-counter" class="text-muted" style="font-size:.78rem;"></span>
-          </div>
-          <div id="booking-detail-meta" class="text-muted" style="font-size:.82rem;margin-top:12px;"></div>
-          <div class="table-wrap" style="margin-top:14px;">
-            <table>
-              <thead><tr><th>Product Code</th><th>Product Name</th><th>Packing</th><th>Company</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Bonus</th></tr></thead>
-              <tbody id="tbody-booking-lines"></tbody>
-            </table>
-          </div>
-        </div>
       </section>
 
       <!-- CUSTOMERS -->
