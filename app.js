@@ -431,7 +431,7 @@
         if (bInfo.selfBonus > 0 && saleCompanyIncluded) {
           rows.push({
             type:"bonus", code:d.product_code, name:p?.product_name || "Unmatched product",
-            packing:p?.packing || "-", company, qty:bInfo.selfBonus, unitPrice:0, total:0
+            packing:p?.packing || "-", company, qty:bInfo.selfBonus, saleQty:Number(d.quantity)||0, unitPrice:0, total:0
           });
         }
         bInfo.crossBonuses.forEach(cb => {
@@ -440,7 +440,7 @@
           if (selectedCompanies.length && !selectedCompanies.includes(bonusCompany)) return;
           rows.push({
             type:"bonus", code:cb.foc_code, name:bonusProduct?.product_name || "Unmatched bonus product",
-            packing:bonusProduct?.packing || "-", company:bonusCompany, qty:Number(cb.qty)||0, unitPrice:0,total:0
+            packing:bonusProduct?.packing || "-", company:bonusCompany, qty:Number(cb.qty)||0, saleQty:Number(d.quantity)||0, unitPrice:0,total:0
           });
         });
       });
@@ -493,7 +493,7 @@
           <tr class="${row.type === "bonus" ? "invoice-bonus-row" : ""}">
             <td><span class="invoice-item-name">${row.name}</span><small class="invoice-item-code">${row.code} · ${row.packing}</small></td>
             <td>${row.company}</td>
-            <td class="numeric-cell">${row.qty.toLocaleString()}</td>
+            <td class="numeric-cell">${bonusOnly && row.type === "bonus" ? `${(row.saleQty || 0).toLocaleString()} + ${row.qty.toLocaleString()}` : row.qty.toLocaleString()}</td>
             <td class="numeric-cell">${row.type === "bonus" ? '<span class="bonus-pill">FREE</span>' : Number(row.unitPrice).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
             <td class="numeric-cell">${row.type === "bonus" ? '<span class="bonus-amount">PKR 0.00</span>' : Number(row.total).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
           </tr>`).join("") : '<tr><td colspan="5" class="invoice-empty-lines">No line items match the selected filters.</td></tr>';
@@ -508,7 +508,7 @@
               <div><small>SOURCE FILE</small><strong>${booking.filename || "Imported booking"}</strong><span>${rows.length} displayed item(s)</span></div>
             </div>
             <div class="table-wrap invoice-lines-wrap"><table class="invoice-lines-table">
-              <thead><tr><th>Item description</th><th>Company</th><th class="numeric-cell">Qty</th><th class="numeric-cell">Unit price</th><th class="numeric-cell">Amount</th></tr></thead>
+              <thead><tr><th>Item description</th><th>Company</th><th class="numeric-cell">${bonusOnly ? "Qty (Sale + Free)" : "Qty"}</th><th class="numeric-cell">Unit price</th><th class="numeric-cell">Amount</th></tr></thead>
               <tbody>${lineRows}</tbody>
             </table></div>
             <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(booking.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div></div>
