@@ -33,7 +33,10 @@
       if (btn) {
         const icon = btn.querySelector(".theme-icon");
         const label = btn.querySelector(".theme-label");
-        if (icon) icon.textContent = isDark ? "☀" : "☾";
+        if (icon) {
+          icon.setAttribute("data-lucide", isDark ? "sun" : "moon");
+          if (window.lucide?.createIcons) window.lucide.createIcons();
+        }
         if (label) label.textContent = isDark ? "Light mode" : "Dark mode";
         btn.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
         btn.title = isDark ? "Switch to light mode" : "Switch to dark mode";
