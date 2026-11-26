@@ -312,26 +312,32 @@
   async function getAll(storeName) {
     const db = await openSalesDB();
     const tx = db.transaction(storeName, "readonly");
-    const result = await requestResult(tx.objectStore(storeName).getAll());
-    await txDone(tx);
+    const done = txDone(tx);
+    const resultPromise = requestResult(tx.objectStore(storeName).getAll());
+    const result = await resultPromise;
+    await done;
     return result;
   }
 
   async function getImport(month) {
     const db = await openSalesDB();
     const tx = db.transaction(STORE_IMPORTS, "readonly");
-    const result = await requestResult(tx.objectStore(STORE_IMPORTS).get(month));
-    await txDone(tx);
+    const done = txDone(tx);
+    const resultPromise = requestResult(tx.objectStore(STORE_IMPORTS).get(month));
+    const result = await resultPromise;
+    await done;
     return result || null;
   }
 
   async function getCounts() {
     const db = await openSalesDB();
     const tx = db.transaction([STORE_IMPORTS, STORE_LINES], "readonly");
-    const imports = await requestResult(tx.objectStore(STORE_IMPORTS).count());
-    const lines = await requestResult(tx.objectStore(STORE_LINES).count());
-    await txDone(tx);
-    return { imports, lines };
+    const done = txDone(tx);
+    const importsRequest = requestResult(tx.objectStore(STORE_IMPORTS).count());
+    const linesRequest = requestResult(tx.objectStore(STORE_LINES).count());
+    const values = await Promise.all([importsRequest, linesRequest]);
+    await done;
+    return { imports: values[0], lines: values[1] };
   }
 
   async function putStagingChunk(token, lines, offset) {
@@ -502,7 +508,7 @@
         item.summary.lines.toLocaleString(),
         item.summary.customers.toLocaleString(),
         item.summary.invoices.toLocaleString(),
-        warnings ? warnings + " warning(s)" : "Ready"
+        item.summary.error ? "Invalid: " + item.summary.error : (duplicateInSelection ? "Duplicate month in selection" : (warnings ? warnings + " warning(s)" : "Ready"))
       ];
       cells.forEach((value) => {
         const td = document.createElement("td");
@@ -664,9 +670,12 @@
     const db = await openSalesDB();
     const stores = [STORE_IMPORTS, STORE_LINES, STORE_FEEDBACK, STORE_SETTINGS];
     const tx = db.transaction(stores, "readonly");
+    const done = txDone(tx);
     const backup = { format: "omf-sales-backup", version: 1, createdAt: new Date().toISOString(), data: {} };
-    for (const name of stores) backup.data[name] = await requestResult(tx.objectStore(name).getAll());
-    await txDone(tx);
+    const requests = stores.map((name) => requestResult(tx.objectStore(name).getAll()));
+    const values = await Promise.all(requests);
+    stores.forEach((name, index) => { backup.data[name] = values[index]; });
+    await done;
     const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
