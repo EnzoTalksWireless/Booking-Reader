@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OMF Booking Suite — Minimalist</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="sales-analyzer.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -16,20 +16,19 @@
         <span class="brand-mark"><span></span><span></span><span></span></span>
         <span class="brand-name">Booking<span>Reader</span></span>
       </a>
-      <div class="sidebar-mobile-head"><p class="sidebar-caption">ANALYZE · TRACK · GROW</p><button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="top-nav"><span>☰</span><span class="mobile-nav-label">Menu</span></button></div>
+      <div class="sidebar-mobile-head"><p class="sidebar-caption">ANALYZE · TRACK · GROW</p><button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="top-nav"><i data-lucide="menu" aria-hidden="true"></i><span class="mobile-nav-label">Menu</span></button></div>
       <div class="sidebar-section-label">WORKSPACE</div>
       <nav id="top-nav" class="nav-strip" aria-label="Main navigation">
-        <button data-tab="dashboard" class="nav-btn active"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
-        <button data-tab="import" class="nav-btn"><span class="nav-icon">⇧</span><span>Import Files</span></button>
-        <button data-tab="bookings" class="nav-btn"><span class="nav-icon">▤</span><span>Browse Bookings</span></button>
-        <button data-tab="customers" class="nav-btn"><span class="nav-icon">♙</span><span>Customers</span></button>
-        <button data-tab="products" class="nav-btn"><span class="nav-icon">◇</span><span>Products</span></button>
-        <button data-tab="bonus" class="nav-btn"><span class="nav-icon">✳</span><span>Bonus Policies</span></button>
-        <button data-tab="analytics" class="nav-btn"><span class="nav-icon">▥</span><span>Sales Analysis</span></button>
-        <button data-tab="sales-data" class="nav-btn"><span class="nav-icon">▦</span><span>Sales Data</span></button>
-        <button data-tab="validation" class="nav-btn"><span class="nav-icon">✓</span><span>Validation</span></button>
-        <button data-tab="export" class="nav-btn"><span class="nav-icon">⇩</span><span>Export Excel</span></button>
-        <button data-tab="storage" class="nav-btn"><span class="nav-icon">▦</span><span>Storage</span></button>
+        <button data-tab="dashboard" class="nav-btn active"><i class="nav-icon" data-lucide="layout-dashboard" aria-hidden="true"></i><span>Dashboard</span></button>
+        <button data-tab="import" class="nav-btn"><i class="nav-icon" data-lucide="file-up" aria-hidden="true"></i><span>Import Files</span></button>
+        <button data-tab="bookings" class="nav-btn"><i class="nav-icon" data-lucide="receipt-text" aria-hidden="true"></i><span>Browse Bookings</span></button>
+        <button data-tab="customers" class="nav-btn"><i class="nav-icon" data-lucide="users" aria-hidden="true"></i><span>Customers</span></button>
+        <button data-tab="products" class="nav-btn"><i class="nav-icon" data-lucide="package" aria-hidden="true"></i><span>Products</span></button>
+        <button data-tab="bonus" class="nav-btn"><i class="nav-icon" data-lucide="gift" aria-hidden="true"></i><span>Bonus Policies</span></button>
+        <button data-tab="analytics" class="nav-btn"><i class="nav-icon" data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>Sales Analysis</span></button>
+        <button data-tab="validation" class="nav-btn"><i class="nav-icon" data-lucide="shield-check" aria-hidden="true"></i><span>Validation</span></button>
+        <button data-tab="export" class="nav-btn"><i class="nav-icon" data-lucide="file-spreadsheet" aria-hidden="true"></i><span>Export Excel</span></button>
+        <button data-tab="storage" class="nav-btn"><i class="nav-icon" data-lucide="database" aria-hidden="true"></i><span>Storage</span></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="system-status"><span class="status-dot"></span><div><strong>Ready to work</strong><small>Local browser workspace</small></div></div>
@@ -50,7 +49,7 @@
                 <span id="badge-master" class="pill pill-primary">Master: 0 Cust | 0 Prod</span>
                 <span id="badge-session" class="pill pill-success">Session Bookings: 0</span>
               </div>
-              <button id="btn-theme-toggle" type="button" class="theme-toggle" aria-label="Switch to dark mode" title="Switch theme"><span class="theme-icon">☾</span><span class="theme-label">Dark mode</span></button>
+              <button id="btn-theme-toggle" type="button" class="theme-toggle" aria-label="Switch to dark mode" title="Switch theme"><i class="theme-icon" data-lucide="moon" aria-hidden="true"></i><span class="theme-label">Dark mode</span></button>
             </div>
           </div>
         </div>
