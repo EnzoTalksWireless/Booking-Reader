@@ -373,6 +373,7 @@
         state.importedFiles.map(f => `<option value="${f.fileHash}">${f.filename}</option>`).join("");
       fileSel.value = prevFile;
 
+      renderCompanyFilter();
       renderBookingsTable(custMap, prodMap);
       renderCustomersTable();
       renderProductsTable();
@@ -382,24 +383,109 @@
       renderCharts();
     }
 
+    function getSelectedCompanies() {
+      return Array.from(document.querySelectorAll("#company-filter-list input[type=checkbox]:checked"))
+        .map(input => input.value);
+    }
+
+    function renderCompanyFilter() {
+      const host = document.getElementById("company-filter-list");
+      if (!host) return;
+      const selected = new Set(getSelectedCompanies());
+      const companies = [...new Set(state.products.map(p => (p.company || "").trim()).filter(Boolean))]
+        .sort((a,b) => a.localeCompare(b));
+      host.innerHTML = companies.length ? companies.map(company => {
+        const checked = selected.has(company) ? "checked" : "";
+        return `<label class="company-filter-option"><input type="checkbox" value="${company.replace(/&/g,"&amp;").replace(/"/g,"&quot;")}" ${checked}><span>${company}</span></label>`;
+      }).join("") : '<span class="text-muted">No company values found in the product catalog.</span>';
+      updateCompanyFilterSummary();
+    }
+
+    function updateCompanyFilterSummary() {
+      const selected = getSelectedCompanies();
+      const label = document.getElementById("company-filter-summary");
+      if (label) label.textContent = selected.length ? `${selected.length} selected` : "All companies";
+    }
+
+    function getInvoiceLineRows(booking, prodMap, options = {}) {
+      const lines = state.bookingDetails.filter(d => d.booking_number === booking.booking_number);
+      const selectedCompanies = options.companies || [];
+      const bonusOnly = !!options.bonusOnly;
+      const orderDate = booking.booking_date || "";
+      const rows = [];
+      lines.forEach(d => {
+        const p = prodMap.get(stripLeadingZeros(d.product_code));
+        const company = p?.company || "Unknown company";
+        if (selectedCompanies.length && !selectedCompanies.includes(company)) return;
+        const bInfo = computeLineBonuses(d.product_code, d.quantity, orderDate);
+        if (!bonusOnly) {
+          rows.push({
+            type:"sale", code:d.product_code, name:p?.product_name || "Unmatched product",
+            packing:p?.packing || "-", company, qty:Number(d.quantity)||0,
+            unitPrice:Number(d.unit_price)||0, total:Number(d.line_total)||0
+          });
+        }
+        if (bInfo.selfBonus > 0) {
+          rows.push({
+            type:"bonus", code:d.product_code, name:p?.product_name || "Unmatched product",
+            packing:p?.packing || "-", company, qty:bInfo.selfBonus, unitPrice:0, total:0
+          });
+        }
+        bInfo.crossBonuses.forEach(cb => {
+          const bonusProduct=prodMap.get(stripLeadingZeros(cb.foc_code));
+          const bonusCompany=bonusProduct?.company || "Unknown company";
+          if (selectedCompanies.length && !selectedCompanies.includes(bonusCompany)) return;
+          rows.push({
+            type:"bonus", code:cb.foc_code, name:bonusProduct?.product_name || "Unmatched bonus product",
+            packing:bonusProduct?.packing || "-", company:bonusCompany, qty:Number(cb.qty)||0, unitPrice:0,total:0
+          });
+        });
+      });
+      return rows;
+    }
+
     function renderBookingsTable(custMap, prodMap) {
       const selectedHash = document.getElementById("filter-omf-file").value;
       const filtered = selectedHash ? state.bookings.filter(b => b.file_hash === selectedHash) : state.bookings;
+      const selectedCompanies = getSelectedCompanies();
+      const bonusOnly = document.getElementById("filter-bonus-only").checked;
+      const host = document.getElementById("invoice-list");
+      let visibleCount = 0;
 
-      const tbody = document.getElementById("tbody-bookings");
-      tbody.innerHTML = filtered.length ? filtered.map(b => {
-        const cust = custMap.get(b.customer_code);
-        return `<tr>
-          <td class="font-mono text-xs">${b.booking_number}</td>
-          <td>${b.booking_date}</td>
-          <td>${b.customer_code}</td>
-          <td>${cust ? cust.customer_name : '<span class="text-[#f85149]">Unknown</span>'}</td>
-          <td>${b.salesperson}</td>
-          <td>${b.route_code}</td>
-          <td class="font-semibold">PKR ${Number(b.booking_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-          <td class="text-xs text-[#8b949e]">${b.filename}</td>
-        </tr>`;
-      }).join("") : `<tr><td colspan="8" class="text-center text-[#8b949e] py-6">No bookings in current session. Import an .omf file first.</td></tr>`;
+      host.innerHTML = filtered.map(b => {
+        const customer = custMap.get(b.customer_code);
+        const rows = getInvoiceLineRows(b, prodMap, {companies:selectedCompanies, bonusOnly});
+        if (selectedCompanies.length || bonusOnly) {
+          if (!rows.length) return "";
+        }
+        visibleCount++;
+        const lineRows = rows.length ? rows.map((row,index) => `
+          <tr class="${row.type === "bonus" ? "invoice-bonus-row" : ""}">
+            <td><span class="invoice-item-name">${row.name}</span><small class="invoice-item-code">${row.code} · ${row.packing}</small></td>
+            <td>${row.company}</td>
+            <td class="numeric-cell">${row.qty.toLocaleString()}</td>
+            <td class="numeric-cell">${row.type === "bonus" ? '<span class="bonus-pill">FREE</span>' : Number(row.unitPrice).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+            <td class="numeric-cell">${row.type === "bonus" ? '<span class="bonus-amount">PKR 0.00</span>' : Number(row.total).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+          </tr>`).join("") : '<tr><td colspan="5" class="invoice-empty-lines">No line items match the selected filters.</td></tr>';
+        const filteredTotal = rows.filter(r=>r.type==="sale").reduce((sum,r)=>sum+r.total,0);
+        const bonusCount = rows.filter(r=>r.type==="bonus").reduce((sum,r)=>sum+r.qty,0);
+        return `
+          <article class="invoice-card">
+            <div class="invoice-topline"><div><span class="invoice-kicker">SALES INVOICE</span><h3>Order #${b.booking_number}</h3></div><span class="invoice-date">${b.booking_date || "Date unavailable"}</span></div>
+            <div class="invoice-meta-grid">
+              <div><small>BILL TO</small><strong>${customer?.customer_name || "Unknown customer"}</strong><span>${b.customer_code}</span></div>
+              <div><small>SALESPERSON</small><strong>${b.salesperson || "-"}</strong><span>Route: ${b.route_code || "-"}</span></div>
+              <div><small>SOURCE FILE</small><strong>${b.filename || "Imported booking"}</strong><span>${rows.length} displayed item(s)</span></div>
+            </div>
+            <div class="table-wrap invoice-lines-wrap"><table class="invoice-lines-table">
+              <thead><tr><th>Item description</th><th>Company</th><th class="numeric-cell">Qty</th><th class="numeric-cell">Unit price</th><th class="numeric-cell">Amount</th></tr></thead>
+              <tbody>${lineRows}</tbody>
+            </table></div>
+            <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(b.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div><button class="btn-secondary invoice-inspect-btn" type="button" data-inspect-booking="${b.booking_number}">Open Bonus Inspector ↗</button></div>
+          </article>`;
+      }).join("") : "";
+      document.getElementById("invoice-result-count").textContent = `${visibleCount} invoice${visibleCount===1?"":"s"}`;
+      if (!visibleCount) host.innerHTML = '<div class="surface empty-invoices"><strong>No invoices match these filters.</strong><span>Try clearing a company selection or switching off “Bonus items only”.</span></div>';
 
       const detailSel = document.getElementById("select-booking-detail");
       const prevOrder = detailSel.value;
@@ -695,18 +781,28 @@
     // ==========================================
     // 4. EVENT LISTENERS
     // ==========================================
+    function activateTab(tab) {
+      document.querySelectorAll(".tab-panel").forEach(p => { p.classList.add("hidden"); p.style.display = "none"; });
+      const activePanel = document.getElementById(`tab-${tab}`);
+      if (!activePanel) return;
+      activePanel.classList.remove("hidden");
+      activePanel.style.display = "block";
+      document.querySelectorAll(".nav-btn[data-tab]").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+      document.querySelectorAll(".quick-action[data-tab]").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+      document.querySelector(".sidebar")?.classList.remove("mobile-nav-open");
+      document.getElementById("mobile-nav-toggle")?.setAttribute("aria-expanded","false");
+      if (tab === "analytics") renderCharts();
+    }
+
+    function openInspector(bookingNumber) {
+      activateTab("inspector");
+      const select = document.getElementById("select-booking-detail");
+      select.value = String(bookingNumber);
+      renderBookingLines();
+    }
+
     document.querySelectorAll(".nav-btn[data-tab], .quick-action[data-tab]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".nav-btn[data-tab], .quick-action[data-tab]").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        const tab = btn.dataset.tab;
-        document.querySelectorAll(".tab-panel").forEach(p => { p.classList.add("hidden"); p.style.display = "none"; });
-        const activePanel = document.getElementById(`tab-${tab}`);
-        if (!activePanel) return;
-        activePanel.classList.remove("hidden");
-        activePanel.style.display = "block";
-        if (tab === "analytics") renderCharts();
-      });
+      btn.addEventListener("click", () => activateTab(btn.dataset.tab));
     });
 
     document.getElementById("input-omf").addEventListener("change", async (e) => {
@@ -935,6 +1031,22 @@
     });
 
     document.getElementById("filter-omf-file").addEventListener("change", () => renderBookingsTable(getCustomerMap(), getProductMap()));
+    document.getElementById("company-filter-list").addEventListener("change", () => {
+      updateCompanyFilterSummary();
+      renderBookingsTable(getCustomerMap(), getProductMap());
+    });
+    document.getElementById("filter-bonus-only").addEventListener("change", () => renderBookingsTable(getCustomerMap(), getProductMap()));
+    document.getElementById("invoice-list").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-inspect-booking]");
+      if (!button) return;
+      openInspector(button.dataset.inspectBooking);
+    });
+    document.getElementById("btn-back-bookings").addEventListener("click", () => activateTab("bookings"));
+    document.getElementById("mobile-nav-toggle").addEventListener("click", () => {
+      const sidebar = document.querySelector(".sidebar");
+      const isOpen = sidebar.classList.toggle("mobile-nav-open");
+      document.getElementById("mobile-nav-toggle").setAttribute("aria-expanded", String(isOpen));
+    });
     document.getElementById("select-booking-detail").addEventListener("change", () => renderBookingLines());
     document.getElementById("btn-prev-order").addEventListener("click", () => stepOrderSelection(-1));
     document.getElementById("btn-next-order").addEventListener("click", () => stepOrderSelection(1));
