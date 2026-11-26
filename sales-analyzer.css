@@ -58,7 +58,7 @@
 .sales-learning-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0}
 .sales-learning-toolbar input{width:min(100%,440px)}
 .sales-learning-toolbar .text-muted{white-space:nowrap;font-size:.72rem}
-.sales-learning-table{min-width:1180px}
+.sales-learning-table{min-width:1380px}
 .sales-learning-table td{font-variant-numeric:tabular-nums}
 @media(max-width:900px){.sales-learning-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:560px){.sales-learning-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.sales-learning-toolbar{align-items:stretch;flex-direction:column}.sales-learning-toolbar input{width:100%}}

@@ -679,7 +679,6 @@
 
   function buildLearningProfiles(lines, importedMonths) {
     const invoices = new Map();
-    const monthSet = new Set(importedMonths.map((item) => item.month));
     lines.forEach((line) => {
       const key = line.customerProduct + "|" + line.invoiceKey;
       let invoice = invoices.get(key);
@@ -749,8 +748,6 @@
         const value = group.months.get(month);
         return value.stock > 0 || value.bonus > 0;
       });
-      const monthlyStock = activeMonths.map((month) => group.months.get(month).stock);
-      const monthlyBonus = activeMonths.map((month) => group.months.get(month).bonus);
       const latest = purchases[purchases.length - 1];
       return {
         customerId: group.customerId,
@@ -812,7 +809,7 @@
     if (!filtered.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 11;
+      td.colSpan = 13;
       td.className = "text-muted";
       td.textContent = learningProfiles.length ? "No customer/product profiles match this search." : "Import historical sales reports to build learning profiles.";
       tr.append(td);
@@ -828,6 +825,8 @@
           formatQuantity(profile.totalBonus),
           profile.purchaseCount.toLocaleString(),
           profile.activeMonths.toLocaleString(),
+          formatQuantity(profile.avgStockPerPurchase),
+          formatQuantity(profile.avgBonusPerPurchase),
           formatQuantity(profile.medianStockPerPurchase),
           formatQuantity(profile.medianBonusPerPurchase),
           profile.avgDaysBetweenPurchases == null ? "—" : formatQuantity(profile.avgDaysBetweenPurchases) + " days",
