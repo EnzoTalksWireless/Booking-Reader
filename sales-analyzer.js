@@ -631,6 +631,8 @@
   async function refreshSalesData() {
     const counts = await getCounts();
     const imports = (await getAll(STORE_IMPORTS)).sort((a, b) => a.month.localeCompare(b.month));
+    const salesLines = await getAll(STORE_LINES);
+    refreshLearningProfiles(salesLines, imports);
     if ($("sales-month-count")) $("sales-month-count").textContent = counts.imports.toLocaleString();
     if ($("sales-line-count")) $("sales-line-count").textContent = counts.lines.toLocaleString();
     if ($("sales-range")) $("sales-range").textContent = imports.length ? imports[0].month + " — " + imports[imports.length - 1].month : "No history imported";
@@ -664,6 +666,200 @@
       } catch (_) {}
     }
     if ($("sales-db-status")) $("sales-db-status").textContent = "Connected · local IndexedDB";
+  }
+
+
+  // Build customer-product learning profiles from invoice-level quantities.
+  function median(values) {
+    if (!values.length) return 0;
+    const sorted = values.slice().sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  function buildLearningProfiles(lines, importedMonths) {
+    const invoices = new Map();
+    const monthSet = new Set(importedMonths.map((item) => item.month));
+    lines.forEach((line) => {
+      const key = line.customerProduct + "|" + line.invoiceKey;
+      let invoice = invoices.get(key);
+      if (!invoice) {
+        invoice = {
+          customerId: line.customerId,
+          customerName: line.customerName,
+          region: line.region,
+          city: line.city,
+          productCode: line.productCode,
+          productName: line.productName,
+          invoiceKey: line.invoiceKey,
+          date: line.transactionDate,
+          month: line.month,
+          stock: 0,
+          bonus: 0
+        };
+        invoices.set(key, invoice);
+      }
+      invoice.stock += Number(line.stock) || 0;
+      invoice.bonus += Number(line.bonus) || 0;
+    });
+
+    const groups = new Map();
+    invoices.forEach((invoice) => {
+      const key = invoice.customerId + "|" + invoice.productCode;
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          customerId: invoice.customerId,
+          customerName: invoice.customerName,
+          region: invoice.region,
+          city: invoice.city,
+          productCode: invoice.productCode,
+          productName: invoice.productName,
+          invoices: [],
+          months: new Map(),
+          totalStock: 0,
+          totalBonus: 0
+        };
+        groups.set(key, group);
+      }
+      group.invoices.push(invoice);
+      group.totalStock += invoice.stock;
+      group.totalBonus += invoice.bonus;
+      const monthly = group.months.get(invoice.month) || { stock: 0, bonus: 0, invoices: 0 };
+      monthly.stock += invoice.stock;
+      monthly.bonus += invoice.bonus;
+      if (invoice.stock > 0 || invoice.bonus > 0) monthly.invoices++;
+      group.months.set(invoice.month, monthly);
+    });
+
+    const profiles = Array.from(groups.values()).map((group) => {
+      const purchases = group.invoices
+        .filter((invoice) => invoice.stock > 0 || invoice.bonus > 0)
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const stockPerInvoice = purchases.map((invoice) => invoice.stock);
+      const bonusPerInvoice = purchases.map((invoice) => invoice.bonus);
+      const gaps = [];
+      for (let i = 1; i < purchases.length; i++) {
+        const previous = new Date(purchases[i - 1].date + "T00:00:00Z");
+        const current = new Date(purchases[i].date + "T00:00:00Z");
+        const days = Math.round((current - previous) / 86400000);
+        if (days >= 0) gaps.push(days);
+      }
+      const activeMonths = Array.from(group.months.keys()).filter((month) => {
+        const value = group.months.get(month);
+        return value.stock > 0 || value.bonus > 0;
+      });
+      const monthlyStock = activeMonths.map((month) => group.months.get(month).stock);
+      const monthlyBonus = activeMonths.map((month) => group.months.get(month).bonus);
+      const latest = purchases[purchases.length - 1];
+      return {
+        customerId: group.customerId,
+        customerName: group.customerName,
+        region: group.region,
+        city: group.city,
+        productCode: group.productCode,
+        productName: group.productName,
+        totalStock: group.totalStock,
+        totalBonus: group.totalBonus,
+        purchaseCount: purchases.length,
+        activeMonths: activeMonths.length,
+        avgStockPerPurchase: purchases.length ? group.totalStock / purchases.length : 0,
+        avgBonusPerPurchase: purchases.length ? group.totalBonus / purchases.length : 0,
+        medianStockPerPurchase: median(stockPerInvoice),
+        medianBonusPerPurchase: median(bonusPerInvoice),
+        avgStockPerActiveMonth: activeMonths.length ? group.totalStock / activeMonths.length : 0,
+        avgBonusPerActiveMonth: activeMonths.length ? group.totalBonus / activeMonths.length : 0,
+        avgDaysBetweenPurchases: gaps.length ? gaps.reduce((sum, value) => sum + value, 0) / gaps.length : null,
+        lastPurchaseDate: latest ? latest.date : "",
+        lastPurchaseMonth: latest ? latest.month : "",
+        monthlyHistory: group.months
+      };
+    });
+    profiles.sort((a, b) => (b.totalStock + b.totalBonus) - (a.totalStock + a.totalBonus));
+    return {
+      profiles,
+      totals: {
+        pairs: profiles.length,
+        customers: new Set(profiles.map((item) => item.customerId)).size,
+        products: new Set(profiles.map((item) => item.productCode)).size,
+        stock: profiles.reduce((sum, item) => sum + item.totalStock, 0),
+        bonus: profiles.reduce((sum, item) => sum + item.totalBonus, 0),
+        invoices: purchasesCount(invoices)
+      }
+    };
+  }
+
+  function purchasesCount(invoices) {
+    return Array.from(invoices.values()).filter((invoice) => invoice.stock > 0 || invoice.bonus > 0).length;
+  }
+
+  let learningProfiles = [];
+  let learningTotals = { pairs: 0, customers: 0, products: 0, stock: 0, bonus: 0, invoices: 0 };
+
+  function formatQuantity(value) {
+    return (Number(value) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
+  function renderLearningProfiles() {
+    const body = $("sales-learning-body");
+    if (!body) return;
+    const search = String($("sales-learning-search")?.value || "").trim().toLowerCase();
+    const filtered = learningProfiles.filter((profile) => {
+      const haystack = [profile.customerId, profile.customerName, profile.productCode, profile.productName, profile.city, profile.region].join(" ").toLowerCase();
+      return !search || haystack.includes(search);
+    });
+    body.innerHTML = "";
+    if (!filtered.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 11;
+      td.className = "text-muted";
+      td.textContent = learningProfiles.length ? "No customer/product profiles match this search." : "Import historical sales reports to build learning profiles.";
+      tr.append(td);
+      body.append(tr);
+    } else {
+      filtered.slice(0, 300).forEach((profile) => {
+        const tr = document.createElement("tr");
+        const values = [
+          profile.customerName + " (" + profile.customerId + ")",
+          profile.productName,
+          profile.productCode,
+          formatQuantity(profile.totalStock),
+          formatQuantity(profile.totalBonus),
+          profile.purchaseCount.toLocaleString(),
+          profile.activeMonths.toLocaleString(),
+          formatQuantity(profile.medianStockPerPurchase),
+          formatQuantity(profile.medianBonusPerPurchase),
+          profile.avgDaysBetweenPurchases == null ? "—" : formatQuantity(profile.avgDaysBetweenPurchases) + " days",
+          profile.lastPurchaseDate || "—"
+        ];
+        values.forEach((value) => {
+          const td = document.createElement("td");
+          td.textContent = value;
+          tr.append(td);
+        });
+        body.append(tr);
+      });
+    }
+    const count = $("sales-learning-result-count");
+    if (count) count.textContent = filtered.length.toLocaleString() + " profile(s)" + (filtered.length > 300 ? " · showing first 300" : "");
+    const pairs = $("sales-learning-pairs");
+    const customers = $("sales-learning-customers");
+    const products = $("sales-learning-products");
+    const stock = $("sales-learning-stock");
+    const bonus = $("sales-learning-bonus");
+    if (pairs) pairs.textContent = learningTotals.pairs.toLocaleString();
+    if (customers) customers.textContent = learningTotals.customers.toLocaleString();
+    if (products) products.textContent = learningTotals.products.toLocaleString();
+    if (stock) stock.textContent = formatQuantity(learningTotals.stock);
+    if (bonus) bonus.textContent = formatQuantity(learningTotals.bonus);
+  }
+
+  function refreshLearningProfiles(lines, imports) {
+    const result = buildLearningProfiles(lines, imports);
+    learningProfiles = result.profiles;
+    learningTotals = result.totals;
+    renderLearningProfiles();
   }
 
   async function exportBackup() {
@@ -726,6 +922,7 @@
       await prepareFiles(files);
     });
     $("btn-sales-apply-import").addEventListener("click", applyImports);
+    $("sales-learning-search")?.addEventListener("input", renderLearningProfiles);
     $("btn-sales-clear-preview").addEventListener("click", () => {
       pendingFiles = [];
       $("input-sales-csv").value = "";
