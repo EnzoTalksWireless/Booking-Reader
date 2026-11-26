@@ -231,3 +231,9 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
   #tab-bookings .invoice-navigation button{min-width:0;flex:1;padding:10px 6px}
   #tab-bookings .invoice-list{padding-bottom:88px}
 }
+
+/* Consistent Lucide icons in the primary navigation and header controls. */
+.nav-icon{width:20px;height:20px;flex:0 0 20px;display:block;stroke-width:1.9}
+.mobile-nav-toggle .lucide{width:19px;height:19px;stroke-width:2}
+.theme-icon{width:17px;height:17px;display:block;stroke-width:2}
+@media(max-width:760px){.nav-icon{width:19px;height:19px;flex-basis:19px}}
