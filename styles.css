@@ -201,3 +201,9 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
  .invoice-card{will-change:transform,opacity}
 }
 @media(prefers-reduced-motion:reduce){.invoice-enter-next,.invoice-enter-prev{animation:none!important;scroll-behavior:auto!important}}
+
+/* Bonus policy company filters */
+.bonus-company-select{min-height:42px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-page);color:var(--text-primary);padding:9px 12px;font-size:.84rem}
+.bonus-product-filters{padding:13px;background:var(--bg-subtle);border:1px solid var(--border-subtle);border-radius:12px}
+#bonus-sale-product-count,#bonus-foc-product-count{display:block;margin-top:5px;font-size:.7rem}
+@media(max-width:760px){.bonus-product-filters{grid-template-columns:1fr;gap:10px}}
