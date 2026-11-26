@@ -207,3 +207,27 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
 .bonus-product-filters{padding:13px;background:var(--bg-subtle);border:1px solid var(--border-subtle);border-radius:12px}
 #bonus-sale-product-count,#bonus-foc-product-count{display:block;margin-top:5px;font-size:.7rem}
 @media(max-width:760px){.bonus-product-filters{grid-template-columns:1fr;gap:10px}}
+
+/* Keep invoice paging anchored to the viewport so invoice height never shifts it. */
+#tab-bookings .invoice-navigation{
+  position:fixed;
+  left:50%;
+  bottom:16px;
+  transform:translateX(-50%);
+  width:min(560px,calc(100vw - 32px));
+  margin:0;
+  z-index:1100;
+}
+#tab-bookings .invoice-list{padding-bottom:92px}
+@media(max-width:760px){
+  #tab-bookings .invoice-navigation{
+    left:12px;
+    bottom:14px;
+    transform:none;
+    width:calc(100vw - 100px);
+    gap:8px;
+    padding:9px;
+  }
+  #tab-bookings .invoice-navigation button{min-width:0;flex:1;padding:10px 6px}
+  #tab-bookings .invoice-list{padding-bottom:88px}
+}
