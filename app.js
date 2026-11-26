@@ -416,16 +416,16 @@
       lines.forEach(d => {
         const p = prodMap.get(stripLeadingZeros(d.product_code));
         const company = p?.company || "Unknown company";
-        if (selectedCompanies.length && !selectedCompanies.includes(company)) return;
+        const saleCompanyIncluded = !selectedCompanies.length || selectedCompanies.includes(company);
         const bInfo = computeLineBonuses(d.product_code, d.quantity, orderDate);
-        if (!bonusOnly) {
+        if (!bonusOnly && saleCompanyIncluded) {
           rows.push({
             type:"sale", code:d.product_code, name:p?.product_name || "Unmatched product",
             packing:p?.packing || "-", company, qty:Number(d.quantity)||0,
             unitPrice:Number(d.unit_price)||0, total:Number(d.line_total)||0
           });
         }
-        if (bInfo.selfBonus > 0) {
+        if (bInfo.selfBonus > 0 && saleCompanyIncluded) {
           rows.push({
             type:"bonus", code:d.product_code, name:p?.product_name || "Unmatched product",
             packing:p?.packing || "-", company, qty:bInfo.selfBonus, unitPrice:0, total:0
