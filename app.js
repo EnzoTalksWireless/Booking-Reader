@@ -17,6 +17,8 @@
     };
 
     let charts = {};
+    let currentInvoiceIndex = 0;
+    let lastInvoiceKey = "";
 
     // Theme state is initialized once at startup and persisted between visits.
     const THEME_KEY = "omf_minimal_theme_v1";
@@ -444,22 +446,47 @@
       return rows;
     }
 
-    function renderBookingsTable(custMap, prodMap) {
+    function getFilteredInvoiceBookings() {
       const selectedHash = document.getElementById("filter-omf-file").value;
-      const filtered = selectedHash ? state.bookings.filter(b => b.file_hash === selectedHash) : state.bookings;
       const selectedCompanies = getSelectedCompanies();
       const bonusOnly = document.getElementById("filter-bonus-only").checked;
-      const host = document.getElementById("invoice-list");
-      let visibleCount = 0;
+      const prodMap = getProductMap();
+      return (selectedHash ? state.bookings.filter(b => b.file_hash === selectedHash) : state.bookings)
+        .filter(b => {
+          const rows = getInvoiceLineRows(b, prodMap, {companies:selectedCompanies, bonusOnly});
+          return (!selectedCompanies.length && !bonusOnly) || rows.length > 0;
+        });
+    }
 
-      host.innerHTML = filtered.map(b => {
-        const customer = custMap.get(b.customer_code);
-        const rows = getInvoiceLineRows(b, prodMap, {companies:selectedCompanies, bonusOnly});
-        if (selectedCompanies.length || bonusOnly) {
-          if (!rows.length) return "";
-        }
-        visibleCount++;
-        const lineRows = rows.length ? rows.map((row,index) => `
+    function renderBookingsTable(custMap, prodMap, direction = 0) {
+      const filtered = getFilteredInvoiceBookings();
+      const host = document.getElementById("invoice-list");
+      const oldKey = lastInvoiceKey;
+      if (oldKey) {
+        const oldIndex = filtered.findIndex(b => String(b.booking_number) === oldKey);
+        if (oldIndex >= 0) currentInvoiceIndex = oldIndex;
+      }
+      currentInvoiceIndex = Math.max(0, Math.min(currentInvoiceIndex, filtered.length - 1));
+      const booking = filtered[currentInvoiceIndex];
+      const nav = document.getElementById("invoice-navigation");
+      const position = document.getElementById("invoice-position");
+      const prevBtn = document.getElementById("invoice-prev");
+      const nextBtn = document.getElementById("invoice-next");
+      document.getElementById("invoice-result-count").textContent = `${filtered.length} invoice${filtered.length===1?"":"s"}`;
+      position.textContent = filtered.length ? `${currentInvoiceIndex + 1} / ${filtered.length}` : "0 / 0";
+      prevBtn.disabled = currentInvoiceIndex <= 0 || !filtered.length;
+      nextBtn.disabled = currentInvoiceIndex >= filtered.length - 1 || !filtered.length;
+      nav.style.display = filtered.length ? "flex" : "none";
+
+      if (!booking) {
+        host.innerHTML = '<div class="surface empty-invoices"><strong>No invoices match these filters.</strong><span>Try clearing a company selection or switching off “Bonus items only”.</span></div>';
+        lastInvoiceKey = "";
+      } else {
+        const customer = custMap.get(booking.customer_code);
+        const selectedCompanies = getSelectedCompanies();
+        const bonusOnly = document.getElementById("filter-bonus-only").checked;
+        const rows = getInvoiceLineRows(booking, prodMap, {companies:selectedCompanies, bonusOnly});
+        const lineRows = rows.length ? rows.map(row => `
           <tr class="${row.type === "bonus" ? "invoice-bonus-row" : ""}">
             <td><span class="invoice-item-name">${row.name}</span><small class="invoice-item-code">${row.code} · ${row.packing}</small></td>
             <td>${row.company}</td>
@@ -469,23 +496,22 @@
           </tr>`).join("") : '<tr><td colspan="5" class="invoice-empty-lines">No line items match the selected filters.</td></tr>';
         const filteredTotal = rows.filter(r=>r.type==="sale").reduce((sum,r)=>sum+r.total,0);
         const bonusCount = rows.filter(r=>r.type==="bonus").reduce((sum,r)=>sum+r.qty,0);
-        return `
-          <article class="invoice-card">
-            <div class="invoice-topline"><div><span class="invoice-kicker">SALES INVOICE</span><h3>Order #${b.booking_number}</h3></div><span class="invoice-date">${b.booking_date || "Date unavailable"}</span></div>
+        host.innerHTML = `
+          <article class="invoice-card invoice-enter-${direction < 0 ? "prev" : direction > 0 ? "next" : "none"}">
+            <div class="invoice-topline"><div><span class="invoice-kicker">SALES INVOICE</span><h3>Order #${booking.booking_number}</h3></div><span class="invoice-date">${booking.booking_date || "Date unavailable"}</span></div>
             <div class="invoice-meta-grid">
-              <div><small>BILL TO</small><strong>${customer?.customer_name || "Unknown customer"}</strong><span>${b.customer_code}</span></div>
-              <div><small>SALESPERSON</small><strong>${b.salesperson || "-"}</strong><span>Route: ${b.route_code || "-"}</span></div>
-              <div><small>SOURCE FILE</small><strong>${b.filename || "Imported booking"}</strong><span>${rows.length} displayed item(s)</span></div>
+              <div><small>BILL TO</small><strong>${customer?.customer_name || "Unknown customer"}</strong><span>${booking.customer_code}</span></div>
+              <div><small>SALESPERSON</small><strong>${booking.salesperson || "-"}</strong><span>Route: ${booking.route_code || "-"}</span></div>
+              <div><small>SOURCE FILE</small><strong>${booking.filename || "Imported booking"}</strong><span>${rows.length} displayed item(s)</span></div>
             </div>
             <div class="table-wrap invoice-lines-wrap"><table class="invoice-lines-table">
               <thead><tr><th>Item description</th><th>Company</th><th class="numeric-cell">Qty</th><th class="numeric-cell">Unit price</th><th class="numeric-cell">Amount</th></tr></thead>
               <tbody>${lineRows}</tbody>
             </table></div>
-            <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(b.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div><button class="btn-secondary invoice-inspect-btn" type="button" data-inspect-booking="${b.booking_number}">Open Bonus Inspector ↗</button></div>
+            <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(booking.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div><button class="btn-secondary invoice-inspect-btn" type="button" data-inspect-booking="${booking.booking_number}">Open Bonus Inspector ↗</button></div>
           </article>`;
-      }).join("");
-      document.getElementById("invoice-result-count").textContent = `${visibleCount} invoice${visibleCount===1?"":"s"}`;
-      if (!visibleCount) host.innerHTML = '<div class="surface empty-invoices"><strong>No invoices match these filters.</strong><span>Try clearing a company selection or switching off “Bonus items only”.</span></div>';
+        lastInvoiceKey = String(booking.booking_number);
+      }
 
       const detailSel = document.getElementById("select-booking-detail");
       const prevOrder = detailSel.value;
@@ -496,6 +522,16 @@
         }).join("");
       detailSel.value = prevOrder;
       renderBookingLines(prodMap);
+    }
+
+    function stepInvoice(direction) {
+      const total = getFilteredInvoiceBookings().length;
+      if (!total) return;
+      const next = Math.max(0, Math.min(currentInvoiceIndex + direction, total - 1));
+      if (next === currentInvoiceIndex) return;
+      currentInvoiceIndex = next;
+      renderBookingsTable(getCustomerMap(), getProductMap(), direction);
+      document.getElementById("invoice-list").scrollIntoView({behavior:"smooth",block:"start"});
     }
 
     function updateOrderNavControls() {
@@ -1030,12 +1066,15 @@
       showToast(`Saved policy with ${tiers.length} tier(s) in browser storage.`);
     });
 
-    document.getElementById("filter-omf-file").addEventListener("change", () => renderBookingsTable(getCustomerMap(), getProductMap()));
+    document.getElementById("filter-omf-file").addEventListener("change", () => { currentInvoiceIndex = 0; lastInvoiceKey = ""; renderBookingsTable(getCustomerMap(), getProductMap()); });
+    document.getElementById("invoice-prev").addEventListener("click", () => stepInvoice(-1));
+    document.getElementById("invoice-next").addEventListener("click", () => stepInvoice(1));
     document.getElementById("company-filter-list").addEventListener("change", () => {
       updateCompanyFilterSummary();
+      currentInvoiceIndex = 0; lastInvoiceKey = "";
       renderBookingsTable(getCustomerMap(), getProductMap());
     });
-    document.getElementById("filter-bonus-only").addEventListener("change", () => renderBookingsTable(getCustomerMap(), getProductMap()));
+    document.getElementById("filter-bonus-only").addEventListener("change", () => { currentInvoiceIndex = 0; lastInvoiceKey = ""; renderBookingsTable(getCustomerMap(), getProductMap()); });
     document.getElementById("invoice-list").addEventListener("click", (event) => {
       const button = event.target.closest("[data-inspect-booking]");
       if (!button) return;
