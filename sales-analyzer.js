@@ -677,7 +677,7 @@
     return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
-  function buildLearningProfiles(lines, importedMonths) {
+  function buildLearningProfiles(lines) {
     const invoices = new Map();
     lines.forEach((line) => {
       const key = line.customerProduct + "|" + line.invoiceKey;
@@ -781,14 +781,11 @@
         products: new Set(profiles.map((item) => item.productCode)).size,
         stock: profiles.reduce((sum, item) => sum + item.totalStock, 0),
         bonus: profiles.reduce((sum, item) => sum + item.totalBonus, 0),
-        invoices: purchasesCount(invoices)
+        invoices: new Set(Array.from(invoices.values()).map((invoice) => invoice.invoiceKey)).size
       }
     };
   }
 
-  function purchasesCount(invoices) {
-    return Array.from(invoices.values()).filter((invoice) => invoice.stock > 0 || invoice.bonus > 0).length;
-  }
 
   let learningProfiles = [];
   let learningTotals = { pairs: 0, customers: 0, products: 0, stock: 0, bonus: 0, invoices: 0 };
@@ -855,7 +852,7 @@
   }
 
   function refreshLearningProfiles(lines, imports) {
-    const result = buildLearningProfiles(lines, imports);
+    const result = buildLearningProfiles(lines);
     learningProfiles = result.profiles;
     learningTotals = result.totals;
     renderLearningProfiles();
