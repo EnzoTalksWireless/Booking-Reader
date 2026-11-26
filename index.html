@@ -257,16 +257,28 @@
         </div>
 
         <div class="surface surface-pad" style="margin-bottom:18px;">
+          <div class="grid-2 bonus-product-filters" style="margin-bottom:10px;">
+            <div>
+              <label class="kpi-label" for="bonus-sale-company-filter" style="display:block;margin-bottom:6px;">Filter Sale Products by Company</label>
+              <select id="bonus-sale-company-filter" class="bonus-company-select" style="width:100%;"><option value="">All Companies</option></select>
+            </div>
+            <div>
+              <label class="kpi-label" for="bonus-foc-company-filter" style="display:block;margin-bottom:6px;">Filter FOC Products by Company</label>
+              <select id="bonus-foc-company-filter" class="bonus-company-select" style="width:100%;"><option value="">All Companies</option></select>
+            </div>
+          </div>
           <div class="grid-2" style="margin-bottom:16px;">
             <div>
               <div class="kpi-label" style="margin-bottom:6px;">1. Sale Product</div>
               <select id="bonus-sale-select" style="width:100%;margin-bottom:8px;"><option value="">-- Select Sale Product --</option></select>
               <input id="bonus-sale-code" type="text" placeholder="Or enter Sale Product Code" style="width:100%;" />
+              <small id="bonus-sale-product-count" class="text-muted"></small>
             </div>
             <div>
               <div class="kpi-label" style="margin-bottom:6px;">2. FOC Bonus Product</div>
               <select id="bonus-foc-select" style="width:100%;margin-bottom:8px;"><option value="">-- Same as Sale Product --</option></select>
               <input id="bonus-foc-code" type="text" placeholder="Or enter FOC Code (leave empty for same)" style="width:100%;" />
+              <small id="bonus-foc-product-count" class="text-muted"></small>
             </div>
           </div>
 
