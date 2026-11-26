@@ -38,6 +38,7 @@
       }
       try { localStorage.setItem(THEME_KEY, isDark ? "dark" : "light"); }
       catch (error) { console.warn("Theme preference could not be saved:", error); }
+      if (typeof charts !== "undefined" && document.getElementById("tab-analytics")?.style.display === "block") renderCharts();
     }
 
     // Apply the saved preference before the rest of the interface initializes.
@@ -664,17 +665,23 @@
       const draw = (id, type, label, dataObj) => {
         if (charts[id]) charts[id].destroy();
         const ctx = document.getElementById(id).getContext("2d");
+        const themeStyles = getComputedStyle(document.documentElement);
+        const textColor = themeStyles.getPropertyValue("--text-secondary").trim() || "#53627e";
+        const mutedColor = themeStyles.getPropertyValue("--text-muted").trim() || "#7e8ba5";
+        const gridColor = themeStyles.getPropertyValue("--border-subtle").trim() || "#e5ebf5";
         charts[id] = new Chart(ctx, {
           type,
           data: {
             labels: Object.keys(dataObj),
-            datasets: [{ label, data: Object.values(dataObj), backgroundColor: ["#0f172a", "#2563eb", "#0d9488", "#d97706", "#dc2626", "#4f46e5"] }]
+            datasets: [{ label, data: Object.values(dataObj), backgroundColor: ["#2675e8", "#12a875", "#8b6be8", "#e9a23b", "#dc4c64", "#31a7b8"] }]
           },
           options: {
-            plugins: { legend: { labels: { color: "#c9d1d9" } }, title: { display: true, text: label, color: "#e6edf3" } },
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { labels: { color: textColor } }, title: { display: true, text: label, color: textColor } },
             scales: type === "pie" ? {} : {
-              x: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } },
-              y: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } }
+              x: { ticks: { color: mutedColor }, grid: { color: gridColor } },
+              y: { ticks: { color: mutedColor }, grid: { color: gridColor } }
             }
           }
         });
@@ -688,9 +695,9 @@
     // ==========================================
     // 4. EVENT LISTENERS
     // ==========================================
-    document.querySelectorAll(".nav-btn[data-tab]").forEach(btn => {
+    document.querySelectorAll(".nav-btn[data-tab], .quick-action[data-tab]").forEach(btn => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".nav-btn[data-tab]").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".nav-btn[data-tab], .quick-action[data-tab]").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         const tab = btn.dataset.tab;
         document.querySelectorAll(".tab-panel").forEach(p => { p.classList.add("hidden"); p.style.display = "none"; });
