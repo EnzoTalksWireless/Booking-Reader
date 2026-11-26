@@ -379,6 +379,7 @@
       renderBookingsTable(custMap, prodMap);
       renderCustomersTable();
       renderProductsTable();
+      populateBonusCompanyFilters();
       populateBonusProductDropdowns(prodMap);
       renderBonusTable(prodMap);
       renderValidation(custMap, prodMap);
@@ -650,6 +651,19 @@
         : `<tr><td colspan="6" class="text-center text-[#8b949e] py-6">No products loaded. Upload products.csv in Import Files.</td></tr>`;
     }
 
+    function populateBonusCompanyFilters() {
+      const companies = [...new Set(state.products.map(p => (p.company || "").trim()).filter(Boolean))]
+        .sort((a,b) => a.localeCompare(b));
+      ["bonus-sale-company-filter","bonus-foc-company-filter"].forEach(id => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        const previous = select.value;
+        select.innerHTML = '<option value="">All Companies</option>' +
+          companies.map(company => `<option value="${company.replace(/&/g,"&amp;").replace(/"/g,"&quot;")}">${company}</option>`).join("");
+        select.value = companies.includes(previous) ? previous : "";
+      });
+    }
+
     function populateBonusProductDropdowns(prodMap) {
       const saleSel = document.getElementById("bonus-sale-select");
       const focSel = document.getElementById("bonus-foc-select");
@@ -657,17 +671,25 @@
 
       const prevSale = saleSel.value;
       const prevFoc = focSel.value;
+      const saleCompany = document.getElementById("bonus-sale-company-filter")?.value || "";
+      const focCompany = document.getElementById("bonus-foc-company-filter")?.value || "";
+      const products = [...state.products].sort((a,b) => (a.product_name || "").localeCompare(b.product_name || ""));
+      const saleProducts = products.filter(p => !saleCompany || (p.company || "").trim() === saleCompany);
+      const focProducts = products.filter(p => !focCompany || (p.company || "").trim() === focCompany);
 
-      const optionsHtml = state.products.map(p => {
+      const makeOptions = list => list.map(p => {
         const code = stripLeadingZeros(p.product_code);
         return `<option value="${code}">${code} - ${p.product_name || ""}</option>`;
       }).join("");
 
-      saleSel.innerHTML = `<option value="">-- Select Sale Product from Catalog --</option>` + optionsHtml;
-      focSel.innerHTML = `<option value="">-- Same as Sale Product (Default) --</option>` + optionsHtml;
-
-      saleSel.value = prevSale;
-      focSel.value = prevFoc;
+      saleSel.innerHTML = '<option value="">-- Select Sale Product from Catalog --</option>' + makeOptions(saleProducts);
+      focSel.innerHTML = '<option value="">-- Same as Sale Product (Default) --</option>' + makeOptions(focProducts);
+      saleSel.value = saleProducts.some(p => stripLeadingZeros(p.product_code) === prevSale) ? prevSale : "";
+      focSel.value = focProducts.some(p => stripLeadingZeros(p.product_code) === prevFoc) ? prevFoc : "";
+      const saleCount = document.getElementById("bonus-sale-product-count");
+      const focCount = document.getElementById("bonus-foc-product-count");
+      if (saleCount) saleCount.textContent = `${saleProducts.length} product(s) available`;
+      if (focCount) focCount.textContent = `${focProducts.length} product(s) available`;
     }
 
     function addDraftTierRow(minVal = "", bonusVal = "", startVal = "", endVal = "", focusMin = false) {
@@ -1021,6 +1043,9 @@
       showToast(`Imported ${importedTiersCount} bonus tier(s) into browser storage until cleared.`);
       e.target.value = "";
     });
+
+    document.getElementById("bonus-sale-company-filter").addEventListener("change", () => populateBonusProductDropdowns(getProductMap()));
+    document.getElementById("bonus-foc-company-filter").addEventListener("change", () => populateBonusProductDropdowns(getProductMap()));
 
     document.getElementById("btn-save-bonus-policy").addEventListener("click", async () => {
       const rawSale = document.getElementById("bonus-sale-code").value.trim() || document.getElementById("bonus-sale-select").value.trim();
