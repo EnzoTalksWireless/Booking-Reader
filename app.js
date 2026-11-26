@@ -18,15 +18,35 @@
 
     let charts = {};
 
-    // Minimalist Theme Toggle (Light default / Dark toggle)
+    // Theme state is initialized once at startup and persisted between visits.
     const THEME_KEY = "omf_minimal_theme_v1";
+    function getSavedTheme() {
+      try { return localStorage.getItem(THEME_KEY) || "light"; }
+      catch (error) { return "light"; }
+    }
     function applyTheme(theme) {
       const isDark = theme === "dark";
       document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
       const btn = document.getElementById("btn-theme-toggle");
-      if (btn) btn.textContent = isDark ? "☀ Light" : "☾ Dark";
-      localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
+      if (btn) {
+        const icon = btn.querySelector(".theme-icon");
+        const label = btn.querySelector(".theme-label");
+        if (icon) icon.textContent = isDark ? "☀" : "☾";
+        if (label) label.textContent = isDark ? "Light mode" : "Dark mode";
+        btn.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+        btn.title = isDark ? "Switch to light mode" : "Switch to dark mode";
+      }
+      try { localStorage.setItem(THEME_KEY, isDark ? "dark" : "light"); }
+      catch (error) { console.warn("Theme preference could not be saved:", error); }
+      if (typeof charts !== "undefined" && document.getElementById("tab-analytics")?.style.display === "block") renderCharts();
     }
+
+    // Apply the saved preference before the rest of the interface initializes.
+    applyTheme(getSavedTheme());
+    document.getElementById("btn-theme-toggle")?.addEventListener("click", () => {
+      const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+      applyTheme(currentTheme === "dark" ? "light" : "dark");
+    });
 
 
     function showToast(msg, isError = false) {
@@ -645,17 +665,23 @@
       const draw = (id, type, label, dataObj) => {
         if (charts[id]) charts[id].destroy();
         const ctx = document.getElementById(id).getContext("2d");
+        const themeStyles = getComputedStyle(document.documentElement);
+        const textColor = themeStyles.getPropertyValue("--text-secondary").trim() || "#53627e";
+        const mutedColor = themeStyles.getPropertyValue("--text-muted").trim() || "#7e8ba5";
+        const gridColor = themeStyles.getPropertyValue("--border-subtle").trim() || "#e5ebf5";
         charts[id] = new Chart(ctx, {
           type,
           data: {
             labels: Object.keys(dataObj),
-            datasets: [{ label, data: Object.values(dataObj), backgroundColor: ["#0f172a", "#2563eb", "#0d9488", "#d97706", "#dc2626", "#4f46e5"] }]
+            datasets: [{ label, data: Object.values(dataObj), backgroundColor: ["#2675e8", "#12a875", "#8b6be8", "#e9a23b", "#dc4c64", "#31a7b8"] }]
           },
           options: {
-            plugins: { legend: { labels: { color: "#c9d1d9" } }, title: { display: true, text: label, color: "#e6edf3" } },
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { labels: { color: textColor } }, title: { display: true, text: label, color: textColor } },
             scales: type === "pie" ? {} : {
-              x: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } },
-              y: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } }
+              x: { ticks: { color: mutedColor }, grid: { color: gridColor } },
+              y: { ticks: { color: mutedColor }, grid: { color: gridColor } }
             }
           }
         });
@@ -669,13 +695,14 @@
     // ==========================================
     // 4. EVENT LISTENERS
     // ==========================================
-    document.querySelectorAll("#top-nav .nav-btn").forEach(btn => {
+    document.querySelectorAll(".nav-btn[data-tab], .quick-action[data-tab]").forEach(btn => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll("#top-nav .nav-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".nav-btn[data-tab], .quick-action[data-tab]").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         const tab = btn.dataset.tab;
         document.querySelectorAll(".tab-panel").forEach(p => { p.classList.add("hidden"); p.style.display = "none"; });
         const activePanel = document.getElementById(`tab-${tab}`);
+        if (!activePanel) return;
         activePanel.classList.remove("hidden");
         activePanel.style.display = "block";
         if (tab === "analytics") renderCharts();
@@ -902,10 +929,6 @@
       document.getElementById("bonus-foc-code").value = "";
       document.getElementById("bonus-sale-select").value = "";
       document.getElementById("bonus-foc-select").value = "";
-      const savedTheme = localStorage.getItem(THEME_KEY) || "light";
-      applyTheme(savedTheme);
-      const tBtn = document.getElementById("btn-theme-toggle");
-      if (tBtn) tBtn.addEventListener("click", () => applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
       resetBonusDraftBuilder();
       refreshAllUI();
       showToast(`Saved policy with ${tiers.length} tier(s) in browser storage.`);
