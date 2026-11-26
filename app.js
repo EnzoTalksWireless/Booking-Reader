@@ -463,7 +463,9 @@
       const filtered = getFilteredInvoiceBookings();
       const host = document.getElementById("invoice-list");
       const oldKey = lastInvoiceKey;
-      if (oldKey) {
+      // Preserve the currently viewed invoice when filters or data are re-rendered,
+      // but never restore the previous invoice during an explicit Next/Previous action.
+      if (oldKey && direction === 0) {
         const oldIndex = filtered.findIndex(b => String(b.booking_number) === oldKey);
         if (oldIndex >= 0) currentInvoiceIndex = oldIndex;
       }
