@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OMF Booking Suite — Minimalist</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="sales-analyzer.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -422,6 +423,33 @@
             </table>
           </div>
           <div id="sales-storage-usage" class="sales-storage-usage">Checking browser storage…</div>
+        </section>
+
+
+        <section class="surface surface-pad sales-learning-card">
+          <div class="sales-section-title">
+            <div><p class="eyebrow">STAGE 2 · LEARNING ENGINE</p><h3>Customer & product learning profiles</h3></div>
+            <span class="pill pill-primary">Built from imported history</span>
+          </div>
+          <p class="page-desc sales-help">The analyzer groups sales at customer + product level. It learns Stock and Bonus behavior independently from invoice-level totals. Median quantities help describe a typical purchase without being dominated by unusually large orders.</p>
+          <div class="sales-learning-kpis">
+            <div><span>Customer-product pairs</span><strong id="sales-learning-pairs">0</strong></div>
+            <div><span>Customers profiled</span><strong id="sales-learning-customers">0</strong></div>
+            <div><span>Products profiled</span><strong id="sales-learning-products">0</strong></div>
+            <div><span>Total Stock units</span><strong id="sales-learning-stock">0</strong></div>
+            <div><span>Total Bonus units</span><strong id="sales-learning-bonus">0</strong></div>
+          </div>
+          <div class="sales-learning-toolbar">
+            <input id="sales-learning-search" type="search" placeholder="Search customer, product, code, city or region…" aria-label="Search learning profiles" />
+            <span id="sales-learning-result-count" class="text-muted">0 profiles</span>
+          </div>
+          <div class="table-wrap">
+            <table class="sales-table sales-learning-table">
+              <thead><tr><th>Customer</th><th>Product</th><th>Code</th><th>Total Stock</th><th>Total Bonus</th><th>Purchases</th><th>Active Months</th><th>Avg Stock / Purchase</th><th>Avg Bonus / Purchase</th><th>Median Stock / Purchase</th><th>Median Bonus / Purchase</th><th>Avg. Days Between</th><th>Last Purchase</th></tr></thead>
+              <tbody id="sales-learning-body"><tr><td colspan="13" class="text-muted">Import historical sales reports to build learning profiles.</td></tr></tbody>
+            </table>
+          </div>
+          <p class="sales-footnote">Profiles are recalculated locally whenever sales data is imported, replaced or restored. “Purchase” means one customer-product invoice, with batch rows combined first. Median quantities are calculated per invoice; active months count only months with a positive Stock or Bonus quantity.</p>
         </section>
 
         <section class="surface surface-pad sales-backup-card">
