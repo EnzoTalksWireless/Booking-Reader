@@ -771,7 +771,9 @@
       if (icon) icon.setAttribute("data-lucide", collapsed ? "panel-left-open" : "panel-left-close");
       if (window.lucide?.createIcons) window.lucide.createIcons();
     }
-    setDesktopNavCollapsed(localStorage.getItem(DESKTOP_NAV_KEY) === "true");
+    let savedDesktopNavCollapsed = false;
+    try { savedDesktopNavCollapsed = localStorage.getItem(DESKTOP_NAV_KEY) === "true"; } catch (error) { console.warn("Sidebar preference could not be read:", error); }
+    setDesktopNavCollapsed(savedDesktopNavCollapsed);
     desktopNavToggle?.addEventListener("click", () => {
       const collapsed = !desktopNav?.classList.contains("desktop-collapsed");
       setDesktopNavCollapsed(collapsed);
