@@ -632,7 +632,9 @@
     const counts = await getCounts();
     const imports = (await getAll(STORE_IMPORTS)).sort((a, b) => a.month.localeCompare(b.month));
     const salesLines = await getAll(STORE_LINES);
+    const anomalyFeedback = await getAll(STORE_FEEDBACK);
     refreshLearningProfiles(salesLines, imports);
+    refreshAnomalyReport(salesLines, anomalyFeedback);
     if ($("sales-month-count")) $("sales-month-count").textContent = counts.imports.toLocaleString();
     if ($("sales-line-count")) $("sales-line-count").textContent = counts.lines.toLocaleString();
     if ($("sales-range")) $("sales-range").textContent = imports.length ? imports[0].month + " — " + imports[imports.length - 1].month : "No history imported";
@@ -858,6 +860,210 @@
     renderLearningProfiles();
   }
 
+  // Detect historical outliers using only earlier invoices for the same customer-product pair.
+  // These are review prompts, not proof that a transaction is wrong.
+  let anomalyFindings = [];
+  let anomalyFeedbackMap = new Map();
+
+  function buildInvoiceHistory(lines) {
+    const invoices = new Map();
+    lines.forEach((line) => {
+      const key = line.customerProduct + "|" + line.invoiceKey;
+      let invoice = invoices.get(key);
+      if (!invoice) {
+        invoice = {
+          customerId: line.customerId,
+          customerName: line.customerName,
+          city: line.city,
+          region: line.region,
+          productCode: line.productCode,
+          productName: line.productName,
+          customerProduct: line.customerProduct,
+          invoiceKey: line.invoiceKey,
+          transactionId: line.transactionId,
+          date: line.transactionDate,
+          stock: 0,
+          bonus: 0
+        };
+        invoices.set(key, invoice);
+      }
+      invoice.stock += Number(line.stock) || 0;
+      invoice.bonus += Number(line.bonus) || 0;
+    });
+    const groups = new Map();
+    invoices.forEach((invoice) => {
+      if (!(invoice.stock > 0 || invoice.bonus > 0)) return;
+      if (!groups.has(invoice.customerProduct)) groups.set(invoice.customerProduct, []);
+      groups.get(invoice.customerProduct).push(invoice);
+    });
+    groups.forEach((items) => items.sort((a, b) => a.date.localeCompare(b.date) || a.invoiceKey.localeCompare(b.invoiceKey)));
+    return groups;
+  }
+
+  function robustHighThreshold(values) {
+    const typical = median(values);
+    const deviations = values.map((value) => Math.abs(value - typical));
+    const mad = median(deviations);
+    return Math.max(typical * 2.5, typical + 3 * mad, typical + 5);
+  }
+
+  function buildAnomalyFindings(lines) {
+    const groups = buildInvoiceHistory(lines);
+    const findings = [];
+    groups.forEach((invoices) => {
+      const previousGaps = [];
+      for (let index = 0; index < invoices.length; index++) {
+        const current = invoices[index];
+        const previous = invoices.slice(0, index);
+        const keyBase = current.customerProduct + "|" + current.invoiceKey;
+        ["stock", "bonus"].forEach((kind) => {
+          const priorValues = previous.map((item) => item[kind]).filter((value) => value > 0);
+          const actual = current[kind];
+          if (actual <= 0 || priorValues.length < 5) return;
+          const typical = median(priorValues);
+          const threshold = robustHighThreshold(priorValues);
+          if (actual > threshold) {
+            findings.push({
+              id: kind + "|" + keyBase,
+              kind,
+              customerName: current.customerName,
+              customerId: current.customerId,
+              city: current.city,
+              region: current.region,
+              productName: current.productName,
+              productCode: current.productCode,
+              transactionId: current.transactionId,
+              date: current.date,
+              actual,
+              typical,
+              threshold,
+              severity: actual >= threshold * 1.75 ? "High" : "Moderate"
+            });
+          }
+        });
+
+        if (index > 0) {
+          const previousDate = new Date(invoices[index - 1].date + "T00:00:00Z");
+          const currentDate = new Date(current.date + "T00:00:00Z");
+          const gap = Math.round((currentDate - previousDate) / 86400000);
+          if (gap > 0) {
+            if (previousGaps.length >= 5) {
+              const typicalGap = median(previousGaps);
+              if (typicalGap >= 14 && gap < typicalGap * 0.35 && typicalGap - gap >= 7) {
+                findings.push({
+                  id: "timing|" + keyBase,
+                  kind: "timing",
+                  customerName: current.customerName,
+                  customerId: current.customerId,
+                  city: current.city,
+                  region: current.region,
+                  productName: current.productName,
+                  productCode: current.productCode,
+                  transactionId: current.transactionId,
+                  date: current.date,
+                  actual: gap,
+                  typical: typicalGap,
+                  threshold: typicalGap * 0.35,
+                  severity: gap <= typicalGap * 0.2 ? "High" : "Moderate"
+                });
+              }
+            }
+            previousGaps.push(gap);
+          }
+        }
+      }
+    });
+    const order = { High: 0, Moderate: 1 };
+    findings.sort((a, b) => order[a.severity] - order[b.severity] || b.date.localeCompare(a.date));
+    return findings;
+  }
+
+  function renderAnomalyReport() {
+    const body = $("sales-anomaly-body");
+    if (!body) return;
+    const search = String($("sales-anomaly-search")?.value || "").trim().toLowerCase();
+    const filtered = anomalyFindings.filter((item) => {
+      const text = [item.customerName, item.customerId, item.productName, item.productCode, item.city, item.region, item.kind, item.transactionId].join(" ").toLowerCase();
+      return !search || text.includes(search);
+    });
+    body.innerHTML = "";
+    if (!filtered.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 8;
+      td.className = "text-muted";
+      td.textContent = anomalyFindings.length
+        ? "No anomaly findings match this search."
+        : "No unusual patterns detected yet. Quantity checks need at least 5 earlier purchases for the same customer and product; timing checks need at least 5 earlier intervals.";
+      tr.append(td);
+      body.append(tr);
+    } else {
+      filtered.slice(0, 300).forEach((item) => {
+        const feedback = anomalyFeedbackMap.get(item.id);
+        const expected = feedback?.decision === "expected";
+        const tr = document.createElement("tr");
+        const values = [
+          item.severity,
+          item.kind === "stock" ? "Stock quantity" : item.kind === "bonus" ? "Bonus quantity" : "Early reorder",
+          item.customerName + " (" + item.customerId + ")",
+          item.productName + " (" + item.productCode + ")",
+          item.date,
+          item.kind === "timing"
+            ? item.actual + " days (usual " + formatQuantity(item.typical) + " days)"
+            : formatQuantity(item.actual) + " (usual " + formatQuantity(item.typical) + ")",
+          expected ? "Marked expected" : "Needs review"
+        ];
+        values.forEach((value, index) => {
+          const td = document.createElement("td");
+          td.textContent = value;
+          if (index === 0) td.className = item.severity === "High" ? "sales-anomaly-high" : "sales-anomaly-moderate";
+          tr.append(td);
+        });
+        const actionCell = document.createElement("td");
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "btn-secondary sales-anomaly-action";
+        action.dataset.feedbackId = item.id;
+        action.textContent = expected ? "Undo" : "Mark expected";
+        actionCell.append(action);
+        tr.append(actionCell);
+        body.append(tr);
+      });
+    }
+    const count = $("sales-anomaly-count");
+    if (count) count.textContent = filtered.length.toLocaleString() + " finding(s)" + (filtered.length > 300 ? " · showing first 300" : "");
+    const stock = anomalyFindings.filter((item) => item.kind === "stock").length;
+    const bonus = anomalyFindings.filter((item) => item.kind === "bonus").length;
+    const timing = anomalyFindings.filter((item) => item.kind === "timing").length;
+    const customers = new Set(anomalyFindings.map((item) => item.customerId)).size;
+    if ($("sales-anomaly-total")) $("sales-anomaly-total").textContent = anomalyFindings.length.toLocaleString();
+    if ($("sales-anomaly-customers")) $("sales-anomaly-customers").textContent = customers.toLocaleString();
+    if ($("sales-anomaly-stock")) $("sales-anomaly-stock").textContent = stock.toLocaleString();
+    if ($("sales-anomaly-bonus")) $("sales-anomaly-bonus").textContent = bonus.toLocaleString();
+    if ($("sales-anomaly-timing")) $("sales-anomaly-timing").textContent = timing.toLocaleString();
+  }
+
+  function refreshAnomalyReport(lines, feedbackRecords) {
+    anomalyFindings = buildAnomalyFindings(lines);
+    anomalyFeedbackMap = new Map((feedbackRecords || []).map((item) => [item.id, item]));
+    renderAnomalyReport();
+  }
+
+  async function saveAnomalyFeedback(id, expected) {
+    const db = await openSalesDB();
+    const tx = db.transaction(STORE_FEEDBACK, "readwrite");
+    const store = tx.objectStore(STORE_FEEDBACK);
+    if (expected) {
+      store.put({ id, decision: "expected", updatedAt: new Date().toISOString() });
+    } else {
+      store.delete(id);
+    }
+    await txDone(tx);
+    const records = await getAll(STORE_FEEDBACK);
+    anomalyFeedbackMap = new Map(records.map((item) => [item.id, item]));
+    renderAnomalyReport();
+  }
+
   async function exportBackup() {
     const db = await openSalesDB();
     const stores = [STORE_IMPORTS, STORE_LINES, STORE_FEEDBACK, STORE_SETTINGS];
@@ -919,6 +1125,18 @@
     });
     $("btn-sales-apply-import").addEventListener("click", applyImports);
     $("sales-learning-search")?.addEventListener("input", renderLearningProfiles);
+    $("sales-anomaly-search")?.addEventListener("input", renderAnomalyReport);
+    $("sales-anomaly-body")?.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-feedback-id]");
+      if (!button) return;
+      button.disabled = true;
+      try {
+        await saveAnomalyFeedback(button.dataset.feedbackId, button.textContent !== "Undo");
+      } catch (error) {
+        button.disabled = false;
+        showMessage("Could not save anomaly feedback: " + error.message, true);
+      }
+    });
     $("btn-sales-clear-preview").addEventListener("click", () => {
       pendingFiles = [];
       $("input-sales-csv").value = "";
