@@ -242,7 +242,7 @@
           </div>
         </div>
 
-        <div id="bonus-policy-builder" class="surface surface-pad" style="margin-bottom:18px;">
+        <div class="surface surface-pad" style="margin-bottom:18px;">
           <div class="grid-2 bonus-product-filters" style="margin-bottom:10px;">
             <div>
               <label class="kpi-label" for="bonus-sale-company-filter" style="display:block;margin-bottom:6px;">Filter Sale Products by Company</label>
@@ -284,26 +284,14 @@
 
           <div class="topbar-row">
             <span class="text-muted" style="font-size:0.78rem;">Fill tier values and press <strong>Enter</strong> to append another row, then save once.</span>
-            <div class="status-group"><button id="btn-cancel-bonus-edit" type="button" class="btn-secondary" style="display:none;">Cancel Edit</button><button id="btn-save-bonus-policy" type="button" class="btn-primary">Save Policy</button></div>
+            <button id="btn-save-bonus-policy" type="button" class="btn-primary">Save Policy</button>
           </div>
         </div>
 
-        <div class="surface surface-pad" style="margin-bottom:10px;">
-          <div class="topbar-row" style="gap:12px;flex-wrap:wrap;">
-            <div style="min-width:220px;flex:1;">
-              <label class="kpi-label" for="bonus-policy-company-filter" style="display:block;margin-bottom:6px;">Filter Existing Policies by Company</label>
-              <select id="bonus-policy-company-filter" class="bonus-company-select" style="width:100%;"><option value="">All Companies</option></select>
-            </div>
-            <div class="status-group" style="align-self:flex-end;">
-              <span id="bonus-policy-count" class="pill">0 policies</span>
-              <button id="btn-delete-all-bonus" type="button" class="btn-danger" onclick="deleteAllBonusPolicies()">Delete All Policies</button>
-            </div>
-          </div>
-        </div>
         <div class="surface table-wrap">
           <table>
             <thead>
-              <tr><th>Sale Product</th><th>FOC Bonus Product</th><th>Tier Breakdown</th><th>Actions</th></tr>
+              <tr><th>Sale Product</th><th>FOC Bonus Product</th><th>Tier Breakdown</th><th>Action</th></tr>
             </thead>
             <tbody id="tbody-bonus"></tbody>
           </table>
