@@ -757,29 +757,6 @@
     // ==========================================
     // 4. EVENT LISTENERS
     // ==========================================
-    // Desktop sidebar collapse preference (mobile navigation remains unchanged).
-    const DESKTOP_NAV_KEY = "omf_desktop_nav_collapsed_v1";
-    const desktopNav = document.querySelector(".sidebar");
-    const desktopNavToggle = document.getElementById("desktop-nav-toggle");
-    function setDesktopNavCollapsed(collapsed) {
-      if (!desktopNav || !desktopNavToggle) return;
-      desktopNav.classList.toggle("desktop-collapsed", collapsed);
-      desktopNavToggle.setAttribute("aria-expanded", String(!collapsed));
-      desktopNavToggle.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
-      desktopNavToggle.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
-      const icon = desktopNavToggle.querySelector("[data-lucide]");
-      if (icon) icon.setAttribute("data-lucide", collapsed ? "panel-left-open" : "panel-left-close");
-      if (window.lucide?.createIcons) window.lucide.createIcons();
-    }
-    let savedDesktopNavCollapsed = false;
-    try { savedDesktopNavCollapsed = localStorage.getItem(DESKTOP_NAV_KEY) === "true"; } catch (error) { console.warn("Sidebar preference could not be read:", error); }
-    setDesktopNavCollapsed(savedDesktopNavCollapsed);
-    desktopNavToggle?.addEventListener("click", () => {
-      const collapsed = !desktopNav?.classList.contains("desktop-collapsed");
-      setDesktopNavCollapsed(collapsed);
-      try { localStorage.setItem(DESKTOP_NAV_KEY, String(collapsed)); } catch (error) { console.warn("Sidebar preference could not be saved:", error); }
-    });
-
     function activateTab(tab) {
       document.querySelectorAll(".tab-panel").forEach(p => { p.classList.add("hidden"); p.style.display = "none"; });
       const activePanel = document.getElementById(`tab-${tab}`);
