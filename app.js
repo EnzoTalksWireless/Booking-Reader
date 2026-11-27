@@ -423,27 +423,31 @@
         const p = prodMap.get(stripLeadingZeros(d.product_code));
         const company = p?.company || "Unknown company";
         const saleCompanyIncluded = !selectedCompanies.length || selectedCompanies.includes(company);
-        const bInfo = computeLineBonuses(d.product_code, d.quantity, orderDate);
-        if (!bonusOnly && saleCompanyIncluded) {
+        const saleQty = Number(d.quantity) || 0;
+        const bInfo = computeLineBonuses(d.product_code, saleQty, orderDate);
+
+        if (saleCompanyIncluded && !bonusOnly) {
           rows.push({
             type:"sale", code:d.product_code, name:p?.product_name || "Unmatched product",
-            packing:p?.packing || "-", company, qty:Number(d.quantity)||0,
+            packing:p?.packing || "-", company, saleQty, bonusQty:bInfo.selfBonus,
             unitPrice:Number(d.unit_price)||0, total:Number(d.line_total)||0
           });
-        }
-        if (bInfo.selfBonus > 0 && saleCompanyIncluded) {
+        } else if (saleCompanyIncluded && bonusOnly && bInfo.selfBonus > 0) {
           rows.push({
             type:"bonus", code:d.product_code, name:p?.product_name || "Unmatched product",
-            packing:p?.packing || "-", company, qty:bInfo.selfBonus, saleQty:Number(d.quantity)||0, unitPrice:0, total:0
+            packing:p?.packing || "-", company, saleQty, bonusQty:bInfo.selfBonus,
+            unitPrice:0, total:0
           });
         }
+
         bInfo.crossBonuses.forEach(cb => {
           const bonusProduct=prodMap.get(stripLeadingZeros(cb.foc_code));
           const bonusCompany=bonusProduct?.company || "Unknown company";
           if (selectedCompanies.length && !selectedCompanies.includes(bonusCompany)) return;
           rows.push({
             type:"bonus", code:cb.foc_code, name:bonusProduct?.product_name || "Unmatched bonus product",
-            packing:bonusProduct?.packing || "-", company:bonusCompany, qty:Number(cb.qty)||0, saleQty:Number(d.quantity)||0, unitPrice:0,total:0
+            packing:bonusProduct?.packing || "-", company:bonusCompany,
+            saleQty:0, bonusQty:Number(cb.qty)||0, unitPrice:0, total:0
           });
         });
       });
@@ -496,12 +500,13 @@
           <tr class="${row.type === "bonus" ? "invoice-bonus-row" : ""}">
             <td><span class="invoice-item-name">${row.name}</span><small class="invoice-item-code">${row.code} · ${row.packing}</small></td>
             <td>${row.company}</td>
-            <td class="numeric-cell">${bonusOnly && row.type === "bonus" ? `${(row.saleQty || 0).toLocaleString()} + ${row.qty.toLocaleString()}` : row.qty.toLocaleString()}</td>
+            <td class="numeric-cell">${(row.saleQty || 0).toLocaleString()}</td>
+            <td class="numeric-cell">${(row.bonusQty || 0).toLocaleString()}</td>
             <td class="numeric-cell">${row.type === "bonus" ? '<span class="bonus-pill">FREE</span>' : Number(row.unitPrice).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
             <td class="numeric-cell">${row.type === "bonus" ? '<span class="bonus-amount">PKR 0.00</span>' : Number(row.total).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-          </tr>`).join("") : '<tr><td colspan="5" class="invoice-empty-lines">No line items match the selected filters.</td></tr>';
+          </tr>`).join("") : '<tr><td colspan="6" class="invoice-empty-lines">No line items match the selected filters.</td></tr>';
         const filteredTotal = rows.filter(r=>r.type==="sale").reduce((sum,r)=>sum+r.total,0);
-        const bonusCount = rows.filter(r=>r.type==="bonus").reduce((sum,r)=>sum+r.qty,0);
+        const bonusCount = rows.reduce((sum,r)=>sum+(Number(r.bonusQty)||0),0);
         host.innerHTML = `
           <article class="invoice-card invoice-enter-${direction < 0 ? "prev" : direction > 0 ? "next" : "none"}">
             <div class="invoice-topline"><div><span class="invoice-kicker">SALES INVOICE</span><h3>Order #${booking.booking_number}</h3></div><span class="invoice-date">${booking.booking_date || "Date unavailable"}</span></div>
@@ -511,7 +516,7 @@
               <div><small>SOURCE FILE</small><strong>${booking.filename || "Imported booking"}</strong><span>${rows.length} displayed item(s)</span></div>
             </div>
             <div class="table-wrap invoice-lines-wrap"><table class="invoice-lines-table">
-              <thead><tr><th>Item description</th><th>Company</th><th class="numeric-cell">${bonusOnly ? "Qty (Sale + Free)" : "Qty"}</th><th class="numeric-cell">Unit price</th><th class="numeric-cell">Amount</th></tr></thead>
+              <thead><tr><th>Item description</th><th>Company</th><th class="numeric-cell">Sales Qty</th><th class="numeric-cell">Bonus Qty</th><th class="numeric-cell">Unit price</th><th class="numeric-cell">Amount</th></tr></thead>
               <tbody>${lineRows}</tbody>
             </table></div>
             <div class="invoice-footer"><div class="invoice-bonus-summary">${bonusCount ? `<span class="bonus-pill">${bonusCount} bonus units</span>` : '<span class="text-muted">No bonus items in displayed lines</span>'}</div><div class="invoice-total"><small>${bonusOnly ? "BONUS ITEMS VIEW" : "INVOICE TOTAL"}</small><strong>${bonusOnly ? `${bonusCount} free units` : `PKR ${Number(booking.booking_total ?? filteredTotal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</strong></div></div>
