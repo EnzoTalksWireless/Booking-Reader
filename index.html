@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OMF Booking Suite — Minimalist</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="sales-analyzer.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -30,7 +29,6 @@
         <button data-tab="validation" class="nav-btn"><i class="nav-icon" data-lucide="shield-check" aria-hidden="true"></i><span>Validation</span></button>
         <button data-tab="export" class="nav-btn"><i class="nav-icon" data-lucide="file-spreadsheet" aria-hidden="true"></i><span>Export Excel</span></button>
         <button data-tab="storage" class="nav-btn"><i class="nav-icon" data-lucide="database" aria-hidden="true"></i><span>Storage</span></button>
-        <button data-tab="sales-data" class="nav-btn"><i class="nav-icon" data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>Sales Data</span></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="system-status"><span class="status-dot"></span><div><strong>Ready to work</strong><small>Local browser workspace</small></div></div>
@@ -357,144 +355,6 @@
         </div>
       </section>
 
-      <!-- SALES DATA MANAGEMENT -->
-      <section id="tab-sales-data" class="tab-panel hidden" style="display:none;">
-        <div class="page-header">
-          <div>
-            <p class="eyebrow">LOCAL SALES DATABASE</p>
-            <h2 class="page-title">Sales Data Management</h2>
-            <p class="page-desc">Import monthly ERP sales reports and maintain a rolling 24-month local history.</p>
-          </div>
-          <span id="sales-db-status" class="pill pill-success">Connecting to local database…</span>
-        </div>
-
-        <div class="sales-kpi-grid">
-          <div class="surface surface-pad"><div class="kpi-label">Imported months</div><div id="sales-month-count" class="kpi-value">0</div></div>
-          <div class="surface surface-pad"><div class="kpi-label">Sales transaction lines</div><div id="sales-line-count" class="kpi-value">0</div></div>
-          <div class="surface surface-pad"><div class="kpi-label">Historical range</div><div id="sales-range" class="kpi-value sales-range-value">No history imported</div></div>
-        </div>
-
-        <section class="surface surface-pad sales-import-card">
-          <div class="sales-section-title">
-            <div><p class="eyebrow">STEP 1 · SELECT REPORTS</p><h3>Import historical sales CSVs</h3></div>
-            <span class="sales-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v4h16v-4"/></svg></span>
-          </div>
-          <p class="page-desc sales-help">Select one or multiple monthly Customer Wise Sales Report CSV files. The importer reads the report period from each file, validates the customer/product rows and shows a preview before saving anything.</p>
-          <label class="sales-upload-zone" for="input-sales-csv">
-            <span class="sales-upload-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M10 10v10"/></svg></span>
-            <strong>Select monthly CSV files</strong>
-            <span>Choose multiple .csv files from your office computer</span>
-            <input id="input-sales-csv" type="file" accept=".csv,text/csv" multiple />
-          </label>
-          <div class="sales-format-note">
-            <strong>Expected format:</strong> Customer Wise Sales Report with customer header rows and item transaction rows. Stock and Bonus are stored independently. Batch lines are preserved.
-          </div>
-          <div id="sales-import-message" class="sales-message" role="status" aria-live="polite" style="display:none;"></div>
-          <div id="sales-import-progress" class="sales-progress" style="display:none;">
-            <div class="sales-progress-track"><div id="sales-import-progress-bar" class="sales-progress-bar"></div></div>
-            <span id="sales-import-progress-label">Preparing…</span>
-          </div>
-          <div id="sales-preview-wrap" class="sales-preview-wrap" style="display:none;">
-            <div class="sales-section-title sales-preview-heading">
-              <div><p class="eyebrow">STEP 2 · REVIEW</p><h3>Import preview</h3></div>
-              <span class="text-muted">Existing months require explicit replacement approval.</span>
-            </div>
-            <div class="table-wrap">
-              <table class="sales-table">
-                <thead><tr><th>File</th><th>Month</th><th>Lines</th><th>Customers</th><th>Invoices</th><th>Validation</th><th>Action</th></tr></thead>
-                <tbody id="sales-preview-body"></tbody>
-              </table>
-            </div>
-            <div class="sales-actions">
-              <button id="btn-sales-clear-preview" type="button" class="btn-secondary">Clear preview</button>
-              <button id="btn-sales-apply-import" type="button" class="btn-primary" disabled>Import selected reports</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="surface surface-pad sales-history-card">
-          <div class="sales-section-title">
-            <div><p class="eyebrow">LOCAL DATABASE</p><h3>Imported monthly reports</h3></div>
-            <span class="pill">Latest 24 calendar months</span>
-          </div>
-          <div class="table-wrap">
-            <table class="sales-table">
-              <thead><tr><th>Month</th><th>Source file</th><th>Lines</th><th>Customers</th><th>Invoices</th><th>Imported at</th></tr></thead>
-              <tbody id="sales-import-history"><tr><td colspan="6" class="text-muted">Loading local sales database…</td></tr></tbody>
-            </table>
-          </div>
-          <div id="sales-storage-usage" class="sales-storage-usage">Checking browser storage…</div>
-        </section>
-
-
-        <section class="surface surface-pad sales-learning-card">
-          <div class="sales-section-title">
-            <div><p class="eyebrow">STAGE 2 · LEARNING ENGINE</p><h3>Customer & product learning profiles</h3></div>
-            <span class="pill pill-primary">Built from imported history</span>
-          </div>
-          <p class="page-desc sales-help">The analyzer groups sales at customer + product level. It learns Stock and Bonus behavior independently from invoice-level totals. Median quantities help describe a typical purchase without being dominated by unusually large orders.</p>
-          <div class="sales-learning-kpis">
-            <div><span>Customer-product pairs</span><strong id="sales-learning-pairs">0</strong></div>
-            <div><span>Customers profiled</span><strong id="sales-learning-customers">0</strong></div>
-            <div><span>Products profiled</span><strong id="sales-learning-products">0</strong></div>
-            <div><span>Total Stock units</span><strong id="sales-learning-stock">0</strong></div>
-            <div><span>Total Bonus units</span><strong id="sales-learning-bonus">0</strong></div>
-          </div>
-          <div class="sales-learning-toolbar">
-            <input id="sales-learning-search" type="search" placeholder="Search customer, product, code, city or region…" aria-label="Search learning profiles" />
-            <span id="sales-learning-result-count" class="text-muted">0 profiles</span>
-          </div>
-          <div class="table-wrap">
-            <table class="sales-table sales-learning-table">
-              <thead><tr><th>Customer</th><th>Product</th><th>Code</th><th>Total Stock</th><th>Total Bonus</th><th>Purchases</th><th>Active Months</th><th>Avg Stock / Purchase</th><th>Avg Bonus / Purchase</th><th>Median Stock / Purchase</th><th>Median Bonus / Purchase</th><th>Avg. Days Between</th><th>Last Purchase</th></tr></thead>
-              <tbody id="sales-learning-body"><tr><td colspan="13" class="text-muted">Import historical sales reports to build learning profiles.</td></tr></tbody>
-            </table>
-          </div>
-          <p class="sales-footnote">Profiles are recalculated locally whenever sales data is imported, replaced or restored. “Purchase” means one customer-product invoice, with batch rows combined first. Median quantities are calculated per invoice; active months count only months with a positive Stock or Bonus quantity.</p>
-        </section>
-
-        <section class="surface surface-pad sales-anomaly-card">
-          <div class="sales-section-title">
-            <div><p class="eyebrow">STAGE 3 · ANOMALY DETECTION</p><h3>Unusual sales patterns</h3></div>
-            <span class="pill pill-primary">Historical pattern checks</span>
-          </div>
-          <p class="page-desc sales-help">Highlights unusually large Stock quantities, unusually large Bonus quantities, and much earlier-than-usual repeat purchases. Each customer-product pair is compared with its own earlier history. These are review prompts, not confirmed errors.</p>
-          <div class="sales-anomaly-kpis">
-            <div><span>Total findings</span><strong id="sales-anomaly-total">0</strong></div>
-            <div><span>Customers affected</span><strong id="sales-anomaly-customers">0</strong></div>
-            <div><span>Stock quantity</span><strong id="sales-anomaly-stock">0</strong></div>
-            <div><span>Bonus quantity</span><strong id="sales-anomaly-bonus">0</strong></div>
-            <div><span>Early reorder</span><strong id="sales-anomaly-timing">0</strong></div>
-          </div>
-          <div class="sales-anomaly-toolbar">
-            <input id="sales-anomaly-search" type="search" placeholder="Search customer, product, code or invoice…" aria-label="Search anomaly findings" />
-            <span id="sales-anomaly-count" class="text-muted">0 findings</span>
-          </div>
-          <div class="table-wrap">
-            <table class="sales-table sales-anomaly-table">
-              <thead><tr><th>Level</th><th>Pattern</th><th>Customer</th><th>Product</th><th>Invoice date</th><th>Observed vs typical</th><th>Review status</th><th>Action</th></tr></thead>
-              <tbody id="sales-anomaly-body"><tr><td colspan="8" class="text-muted">Import historical sales reports to check for unusual patterns.</td></tr></tbody>
-            </table>
-          </div>
-          <p class="sales-footnote">Quantity checks require at least 5 earlier purchases for the same customer and product. Reorder-timing checks require at least 5 earlier purchase intervals. Marking a finding as expected saves that feedback locally and includes it in database backups.</p>
-        </section>
-
-        <section class="surface surface-pad sales-backup-card">
-          <div class="sales-section-title">
-            <div><p class="eyebrow">DATA PROTECTION</p><h3>Backup & recovery</h3></div>
-            <span class="sales-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/><path d="m9 12 2 2 4-4"/></svg></span>
-          </div>
-          <p class="page-desc sales-help">Sales history is stored in this browser on this computer. Export backups regularly and keep a copy on a separate drive. Restoring a backup replaces the current Sales Analyzer database.</p>
-          <div class="sales-actions sales-backup-actions">
-            <button id="btn-sales-export-backup" type="button" class="btn-secondary">Export database backup</button>
-            <label class="btn-secondary sales-restore-label" for="input-sales-restore">Restore from backup</label>
-            <input id="input-sales-restore" type="file" accept=".json,application/json" />
-            <button id="btn-sales-persist" type="button" class="btn-secondary">Protect browser storage</button>
-          </div>
-          <p class="sales-footnote">The database is separate from booking-session storage and the existing customer/product catalog. Clearing a booking session will not erase historical sales.</p>
-        </section>
-      </section>
-
       <!-- STORAGE -->
       <section id="tab-storage" class="tab-panel hidden" style="display:none;">
         <div class="page-header">
@@ -521,6 +381,5 @@
   </div>
 
   <script src="app.js"></script>
-  <script src="sales-analyzer.js"></script>
 </body>
 </html>
