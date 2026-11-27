@@ -453,6 +453,32 @@
           <p class="sales-footnote">Profiles are recalculated locally whenever sales data is imported, replaced or restored. “Purchase” means one customer-product invoice, with batch rows combined first. Median quantities are calculated per invoice; active months count only months with a positive Stock or Bonus quantity.</p>
         </section>
 
+        <section class="surface surface-pad sales-anomaly-card">
+          <div class="sales-section-title">
+            <div><p class="eyebrow">STAGE 3 · ANOMALY DETECTION</p><h3>Unusual sales patterns</h3></div>
+            <span class="pill pill-primary">Historical pattern checks</span>
+          </div>
+          <p class="page-desc sales-help">Highlights unusually large Stock quantities, unusually large Bonus quantities, and much earlier-than-usual repeat purchases. Each customer-product pair is compared with its own earlier history. These are review prompts, not confirmed errors.</p>
+          <div class="sales-anomaly-kpis">
+            <div><span>Total findings</span><strong id="sales-anomaly-total">0</strong></div>
+            <div><span>Customers affected</span><strong id="sales-anomaly-customers">0</strong></div>
+            <div><span>Stock quantity</span><strong id="sales-anomaly-stock">0</strong></div>
+            <div><span>Bonus quantity</span><strong id="sales-anomaly-bonus">0</strong></div>
+            <div><span>Early reorder</span><strong id="sales-anomaly-timing">0</strong></div>
+          </div>
+          <div class="sales-anomaly-toolbar">
+            <input id="sales-anomaly-search" type="search" placeholder="Search customer, product, code or invoice…" aria-label="Search anomaly findings" />
+            <span id="sales-anomaly-count" class="text-muted">0 findings</span>
+          </div>
+          <div class="table-wrap">
+            <table class="sales-table sales-anomaly-table">
+              <thead><tr><th>Level</th><th>Pattern</th><th>Customer</th><th>Product</th><th>Invoice date</th><th>Observed vs typical</th><th>Review status</th><th>Action</th></tr></thead>
+              <tbody id="sales-anomaly-body"><tr><td colspan="8" class="text-muted">Import historical sales reports to check for unusual patterns.</td></tr></tbody>
+            </table>
+          </div>
+          <p class="sales-footnote">Quantity checks require at least 5 earlier purchases for the same customer and product. Reorder-timing checks require at least 5 earlier purchase intervals. Marking a finding as expected saves that feedback locally and includes it in database backups.</p>
+        </section>
+
         <section class="surface surface-pad sales-backup-card">
           <div class="sales-section-title">
             <div><p class="eyebrow">DATA PROTECTION</p><h3>Backup & recovery</h3></div>

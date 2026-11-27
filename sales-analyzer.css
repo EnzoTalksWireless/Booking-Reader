@@ -62,3 +62,21 @@
 .sales-learning-table td{font-variant-numeric:tabular-nums}
 @media(max-width:900px){.sales-learning-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:560px){.sales-learning-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.sales-learning-toolbar{align-items:stretch;flex-direction:column}.sales-learning-toolbar input{width:100%}}
+
+
+/* Stage 3 — historical anomaly review */
+.sales-anomaly-card{margin-bottom:18px}
+.sales-anomaly-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0}
+.sales-anomaly-kpis>div{min-width:0;padding:12px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-page)}
+.sales-anomaly-kpis span{display:block;color:var(--text-muted);font-size:.68rem;line-height:1.4}
+.sales-anomaly-kpis strong{display:block;margin-top:5px;color:var(--text-primary);font-size:1.15rem;font-variant-numeric:tabular-nums}
+.sales-anomaly-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0}
+.sales-anomaly-toolbar input{width:min(100%,440px)}
+.sales-anomaly-toolbar .text-muted{white-space:nowrap;font-size:.72rem}
+.sales-anomaly-table{min-width:1120px}
+.sales-anomaly-table td{font-variant-numeric:tabular-nums}
+.sales-anomaly-high{color:var(--danger);font-weight:700}
+.sales-anomaly-moderate{color:var(--warning);font-weight:700}
+.sales-anomaly-action{padding:6px 9px;font-size:.7rem;white-space:nowrap}
+@media(max-width:900px){.sales-anomaly-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.sales-anomaly-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.sales-anomaly-toolbar{align-items:stretch;flex-direction:column}.sales-anomaly-toolbar input{width:100%}}
