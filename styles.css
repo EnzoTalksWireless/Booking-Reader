@@ -237,18 +237,3 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
 .mobile-nav-toggle .lucide{width:19px;height:19px;stroke-width:2}
 .theme-icon{width:17px;height:17px;display:block;stroke-width:2}
 @media(max-width:760px){.nav-icon{width:19px;height:19px;flex-basis:19px}}
-
-
-/* Desktop collapsible sidebar */
-.desktop-nav-toggle{display:flex;align-items:center;justify-content:center;width:38px;height:38px;margin:22px 0 18px auto;border:1px solid rgba(190,210,240,.22);border-radius:10px;background:rgba(255,255,255,.07);color:#d6e4f7}
-.desktop-nav-toggle:hover{background:rgba(255,255,255,.14);color:#fff}
-.desktop-nav-toggle svg{width:18px;height:18px}
-.sidebar.desktop-collapsed{width:78px;flex-basis:78px;padding-left:12px;padding-right:12px}
-.sidebar.desktop-collapsed .brand-lockup{justify-content:center;padding:0}
-.sidebar.desktop-collapsed .brand-name,.sidebar.desktop-collapsed .sidebar-caption,.sidebar.desktop-collapsed .sidebar-section-label,.sidebar.desktop-collapsed .system-status>div,.sidebar.desktop-collapsed .sidebar-footnote{display:none}
-.sidebar.desktop-collapsed .desktop-nav-toggle{margin:22px auto 18px}
-.sidebar.desktop-collapsed .nav-btn{justify-content:center;padding:12px 8px}
-.sidebar.desktop-collapsed .nav-btn span{display:none}
-.sidebar.desktop-collapsed .nav-icon{width:22px}
-.sidebar.desktop-collapsed .system-status{justify-content:center;padding:13px 8px}
-@media(max-width:760px){.desktop-nav-toggle{display:none!important}.sidebar.desktop-collapsed{width:100%;flex-basis:auto;padding:14px;}.sidebar.desktop-collapsed .brand-lockup{justify-content:flex-start;padding:0 5px}.sidebar.desktop-collapsed .brand-name,.sidebar.desktop-collapsed .sidebar-caption,.sidebar.desktop-collapsed .sidebar-section-label,.sidebar.desktop-collapsed .system-status>div,.sidebar.desktop-collapsed .sidebar-footnote{display:initial}.sidebar.desktop-collapsed .nav-btn{justify-content:flex-start;padding:11px 12px}.sidebar.desktop-collapsed .nav-btn span{display:inline}.sidebar.desktop-collapsed .system-status{justify-content:flex-start;padding:13px 12px}}
