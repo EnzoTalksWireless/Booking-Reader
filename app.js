@@ -19,7 +19,6 @@
     let charts = {};
     let currentInvoiceIndex = 0;
     let lastInvoiceKey = "";
-    let editingBonusPolicyId = null;
 
     // Theme state is initialized once at startup and persisted between visits.
     const THEME_KEY = "omf_minimal_theme_v1";
@@ -251,7 +250,7 @@
     function normalizePolicies() {
       // Backward compatibility if any older flat policy items exist
       return (state.bonusPolicies || []).map((item, idx) => {
-        if (Array.isArray(item.tiers)) return {...item, id:item.id || `pol_${idx}`};
+        if (Array.isArray(item.tiers)) return item;
         return {
           id: item.id || `pol_${idx}`,
           sale_code: stripLeadingZeros(item.product_code || item.sale_code || ""),
@@ -663,111 +662,45 @@
     function renderBonusTable(prodMap) {
       state.bonusPolicies = normalizePolicies();
       const tbody = document.getElementById("tbody-bonus");
-      const companyFilter = document.getElementById("bonus-policy-company-filter");
       if (!tbody) return;
-      const selectedCompany = companyFilter?.value || "";
-      const countLabel = document.getElementById("bonus-policy-count");
-      if (countLabel) countLabel.textContent = `${visiblePolicies.length} of ${state.bonusPolicies.length} policies`;
-      const visiblePolicies = state.bonusPolicies.map((pol, idx) => ({pol, idx})).filter(({pol}) => {
-        if (!selectedCompany) return true;
-        const saleProduct = prodMap.get(stripLeadingZeros(pol.sale_code));
-        return (saleProduct?.company || "Unknown company").trim() === selectedCompany;
-      });
 
-      tbody.innerHTML = visiblePolicies.length
-        ? visiblePolicies.map(({pol, idx}) => {
+      tbody.innerHTML = state.bonusPolicies.length
+        ? state.bonusPolicies.map((pol, idx) => {
             const saleCode = stripLeadingZeros(pol.sale_code);
             const focCode = stripLeadingZeros(pol.foc_code || pol.sale_code);
             const saleProd = prodMap.get(saleCode);
             const focProd = prodMap.get(focCode);
-            const saleLabel = `<div><span class="font-mono">${saleCode}</span> — ${saleProd ? saleProd.product_name : "Unlisted"}</div><small class="text-muted">${saleProd?.company || "Unknown company"}</small>`;
+
+            const saleLabel = `<div><span class="font-mono">${saleCode}</span> — ${saleProd ? saleProd.product_name : "Unlisted"}</div>`;
             const focLabel = focCode === saleCode
               ? `<span class="text-xs px-2 py-0.5 rounded bg-[#21262d] text-[#c9d1d9]">Same as Sale (${focCode})</span>`
               : `<div><span class="font-mono text-[#3fb950]">${focCode}</span> — ${focProd ? focProd.product_name : "Unlisted"}</div>`;
+
             const tiersHtml = (pol.tiers || []).map(t => {
               const dateRange = (t.start_date || t.end_date)
                 ? ` <span class="text-xs text-[#8b949e]">(${t.start_date || "Any"} → ${t.end_date || "Any"})</span>`
                 : "";
               return `<span class="inline-block mr-2 mb-1 px-2 py-0.5 rounded bg-[#0d1117] border border-[#30363d] text-xs font-mono text-[#3fb950]">${t.min_qty} + ${t.bonus_qty}${dateRange}</span>`;
             }).join("");
+
             return `<tr>
-              <td>${saleLabel}</td><td>${focLabel}</td><td>${tiersHtml}</td>
-              <td><div class="flex" style="display:flex;gap:6px;flex-wrap:wrap;">
-                <button type="button" onclick="editBonus(${idx})" class="btn-secondary text-xs">Edit</button>
-                <button type="button" onclick="deleteBonus(${idx})" class="text-xs px-2.5 py-1 rounded bg-[#da3633] text-white">Delete</button>
-              </div></td>
+              <td>${saleLabel}</td>
+              <td>${focLabel}</td>
+              <td>${tiersHtml}</td>
+              <td><button onclick="deleteBonus(${idx})" class="text-xs px-2.5 py-1 rounded bg-[#da3633] text-white">Delete</button></td>
             </tr>`;
           }).join("")
-        : `<tr><td colspan="4" class="text-center text-[#8b949e] py-4">${state.bonusPolicies.length ? "No policies match this company filter." : "No bonus policies configured yet."}</td></tr>`;
-    }
-
-    window.editBonus = function(idx) {
-      state.bonusPolicies = normalizePolicies();
-      const pol = state.bonusPolicies[idx];
-      if (!pol) return;
-      const saleCode = stripLeadingZeros(pol.sale_code);
-      const focCode = stripLeadingZeros(pol.foc_code || pol.sale_code);
-      const prodMap = getProductMap();
-      const saleCompany = (prodMap.get(saleCode)?.company || "").trim();
-      const focCompany = (prodMap.get(focCode)?.company || "").trim();
-      const saleCompanyFilter = document.getElementById("bonus-sale-company-filter");
-      const focCompanyFilter = document.getElementById("bonus-foc-company-filter");
-      if (saleCompanyFilter) saleCompanyFilter.value = saleCompany;
-      if (focCompanyFilter) focCompanyFilter.value = focCompany;
-      populateBonusProductDropdowns(prodMap);
-      document.getElementById("bonus-sale-code").value = saleCode;
-      document.getElementById("bonus-foc-code").value = focCode === saleCode ? "" : focCode;
-      document.getElementById("bonus-sale-select").value = saleCode;
-      document.getElementById("bonus-foc-select").value = focCode === saleCode ? "" : focCode;
-      const tbody = document.getElementById("tbody-bonus-draft-rows");
-      tbody.innerHTML = "";
-      (pol.tiers || []).forEach(t => addDraftTierRow(t.min_qty, t.bonus_qty, t.start_date || "", t.end_date || "", false));
-      if (!(pol.tiers || []).length) addDraftTierRow();
-      editingBonusPolicyId = pol.id;
-      const saveBtn = document.getElementById("btn-save-bonus-policy");
-      saveBtn.textContent = "Update Policy";
-      document.getElementById("btn-cancel-bonus-edit").style.display = "inline-flex";
-      document.getElementById("bonus-policy-builder").scrollIntoView({behavior:"smooth",block:"start"});
-      showToast("Policy loaded. Edit the values and click Update Policy.");
-    };
-
-    function cancelBonusEdit() {
-      editingBonusPolicyId = null;
-      document.getElementById("btn-save-bonus-policy").textContent = "Save Policy";
-      document.getElementById("btn-cancel-bonus-edit").style.display = "none";
-      document.getElementById("bonus-sale-code").value = "";
-      document.getElementById("bonus-foc-code").value = "";
-      document.getElementById("bonus-sale-select").value = "";
-      document.getElementById("bonus-foc-select").value = "";
-      resetBonusDraftBuilder();
+        : `<tr><td colspan="4" class="text-center text-[#8b949e] py-4">No bonus policies configured yet.</td></tr>`;
     }
 
     window.deleteBonus = async function(idx) {
-      state.bonusPolicies = normalizePolicies();
-      if (!state.bonusPolicies[idx]) return;
       state.bonusPolicies.splice(idx, 1);
       await saveMasterKey("bonusPolicies", state.bonusPolicies);
-      if (editingBonusPolicyId && !state.bonusPolicies.some(p => p.id === editingBonusPolicyId)) cancelBonusEdit();
       refreshAllUI();
       showToast("Bonus policy removed.");
     };
 
-    window.deleteAllBonusPolicies = async function() {
-      if (!state.bonusPolicies.length) {
-        showToast("There are no bonus policies to delete.", true);
-        return;
-      }
-      if (!window.confirm(`Delete all ${state.bonusPolicies.length} bonus policies? This cannot be undone.`)) return;
-      state.bonusPolicies = [];
-      await saveMasterKey("bonusPolicies", state.bonusPolicies);
-      cancelBonusEdit();
-      refreshAllUI();
-      showToast("All bonus policies have been deleted.");
-    };
-
-    document.getElementById("bonus-policy-company-filter")?.addEventListener("change", () => renderBonusTable(getProductMap()));
-
-        function renderValidation(custMap, prodMap) {
+    function renderValidation(custMap, prodMap) {
       const unknownCust = state.bookings.filter(b => !custMap.has(b.customer_code));
       const unknownProdSet = new Set();
       state.bookingDetails.forEach(d => {
@@ -1152,35 +1085,47 @@
 
     document.getElementById("btn-save-bonus-policy").addEventListener("click", async () => {
       const rawSale = document.getElementById("bonus-sale-code").value.trim() || document.getElementById("bonus-sale-select").value.trim();
-      if (!rawSale) { showToast("Please select or enter a Sale Product first.", true); return; }
+      if (!rawSale) {
+        showToast("Please select or enter a Sale Product first.", true);
+        return;
+      }
       const saleCode = stripLeadingZeros(rawSale);
       const rawFoc = document.getElementById("bonus-foc-code").value.trim() || document.getElementById("bonus-foc-select").value.trim();
       const focCode = rawFoc ? stripLeadingZeros(rawFoc) : saleCode;
+
       const tiers = [];
       document.querySelectorAll("#tbody-bonus-draft-rows tr.bonus-draft-row").forEach(tr => {
         const minQ = parseInt(tr.querySelector(".draft-min").value, 10);
         const bonQ = parseInt(tr.querySelector(".draft-bonus").value, 10);
         const startD = tr.querySelector(".draft-start").value || "";
         const endD = tr.querySelector(".draft-end").value || "";
-        if (minQ > 0 && bonQ > 0) tiers.push({min_qty:minQ, bonus_qty:bonQ, start_date:startD, end_date:endD});
+        if (minQ > 0 && bonQ > 0) {
+          tiers.push({ min_qty: minQ, bonus_qty: bonQ, start_date: startD, end_date: endD });
+        }
       });
-      if (!tiers.length) { showToast("Please enter at least one valid tier row (Min Qty and Bonus Free Qty).", true); return; }
-      state.bonusPolicies = normalizePolicies();
-      if (editingBonusPolicyId) {
-        const index = state.bonusPolicies.findIndex(p => p.id === editingBonusPolicyId);
-        if (index < 0) { showToast("The policy being edited could not be found.", true); cancelBonusEdit(); return; }
-        state.bonusPolicies[index] = {...state.bonusPolicies[index], sale_code:saleCode, foc_code:focCode, tiers};
-      } else {
-        state.bonusPolicies.push({id:"pol_" + Date.now(), sale_code:saleCode, foc_code:focCode, tiers});
-      }
-      await saveMasterKey("bonusPolicies", state.bonusPolicies);
-      const wasEditing = !!editingBonusPolicyId;
-      cancelBonusEdit();
-      refreshAllUI();
-      showToast(wasEditing ? "Bonus policy updated." : `Saved policy with ${tiers.length} tier(s) in browser storage.`);
-    });
 
-    document.getElementById("btn-cancel-bonus-edit").addEventListener("click", cancelBonusEdit);
+      if (!tiers.length) {
+        showToast("Please enter at least one valid tier row (Min Qty and Bonus Free Qty).", true);
+        return;
+      }
+
+      state.bonusPolicies = normalizePolicies();
+      state.bonusPolicies.push({
+        id: "pol_" + Date.now(),
+        sale_code: saleCode,
+        foc_code: focCode,
+        tiers
+      });
+
+      await saveMasterKey("bonusPolicies", state.bonusPolicies);
+      document.getElementById("bonus-sale-code").value = "";
+      document.getElementById("bonus-foc-code").value = "";
+      document.getElementById("bonus-sale-select").value = "";
+      document.getElementById("bonus-foc-select").value = "";
+      resetBonusDraftBuilder();
+      refreshAllUI();
+      showToast(`Saved policy with ${tiers.length} tier(s) in browser storage.`);
+    });
 
     document.getElementById("filter-omf-file").addEventListener("change", () => { currentInvoiceIndex = 0; lastInvoiceKey = ""; renderBookingsTable(getCustomerMap(), getProductMap()); });
     document.getElementById("invoice-prev").addEventListener("click", () => stepInvoice(-1));
