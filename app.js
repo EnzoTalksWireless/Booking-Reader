@@ -251,7 +251,7 @@
     function normalizePolicies() {
       // Backward compatibility if any older flat policy items exist
       return (state.bonusPolicies || []).map((item, idx) => {
-        if (Array.isArray(item.tiers)) return item;
+        if (Array.isArray(item.tiers)) return {...item, id:item.id || `pol_${idx}`};
         return {
           id: item.id || `pol_${idx}`,
           sale_code: stripLeadingZeros(item.product_code || item.sale_code || ""),
@@ -666,6 +666,8 @@
       const companyFilter = document.getElementById("bonus-policy-company-filter");
       if (!tbody) return;
       const selectedCompany = companyFilter?.value || "";
+      const countLabel = document.getElementById("bonus-policy-count");
+      if (countLabel) countLabel.textContent = `${visiblePolicies.length} of ${state.bonusPolicies.length} policies`;
       const visiblePolicies = state.bonusPolicies.map((pol, idx) => ({pol, idx})).filter(({pol}) => {
         if (!selectedCompany) return true;
         const saleProduct = prodMap.get(stripLeadingZeros(pol.sale_code));
