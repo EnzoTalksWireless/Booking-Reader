@@ -23,13 +23,22 @@
     // Theme state is initialized once at startup and persisted between visits.
     const THEME_KEY = "omf_minimal_theme_v1";
     const INVOICE_SORT_KEY = "omf_invoice_item_sort";
+    const INVOICE_SORT_FIELD_KEY = "omf_invoice_item_sort_field";
     function getInvoiceSortOrder() {
       try { return localStorage.getItem(INVOICE_SORT_KEY) === "desc" ? "desc" : "asc"; }
       catch (error) { return "asc"; }
     }
     function saveInvoiceSortOrder(value) {
       try { localStorage.setItem(INVOICE_SORT_KEY, value === "desc" ? "desc" : "asc"); }
-      catch (error) { console.warn("Could not save invoice item sort preference:", error); }
+      catch (error) { console.warn("Could not save invoice item sort order:", error); }
+    }
+    function getInvoiceSortField() {
+      try { return ["company","item","quantity","bonus"].includes(localStorage.getItem(INVOICE_SORT_FIELD_KEY)) ? localStorage.getItem(INVOICE_SORT_FIELD_KEY) : "item"; }
+      catch (error) { return "item"; }
+    }
+    function saveInvoiceSortField(value) {
+      try { localStorage.setItem(INVOICE_SORT_FIELD_KEY, ["company","item","quantity","bonus"].includes(value) ? value : "item"); }
+      catch (error) { console.warn("Could not save invoice sort field:", error); }
     }
     function getSavedTheme() {
       try { return localStorage.getItem(THEME_KEY) || "light"; }
@@ -461,7 +470,16 @@
         });
       });
       const sortOrder = getInvoiceSortOrder();
-      rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity:"base", numeric:true }) * (sortOrder === "desc" ? -1 : 1));
+      const sortField = getInvoiceSortField();
+      rows.sort((a, b) => {
+        let comparison = 0;
+        if (sortField === "company") comparison = String(a.company || "").localeCompare(String(b.company || ""), undefined, { sensitivity:"base", numeric:true });
+        else if (sortField === "quantity") comparison = (Number(a.saleQty) || 0) - (Number(b.saleQty) || 0);
+        else if (sortField === "bonus") comparison = (Number(a.bonusQty) || 0) - (Number(b.bonusQty) || 0);
+        else comparison = String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity:"base", numeric:true });
+        if (comparison === 0 && sortField !== "item") comparison = String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity:"base", numeric:true });
+        return comparison * (sortOrder === "desc" ? -1 : 1);
+      });
       return rows;
     }
 
@@ -1147,10 +1165,23 @@
       renderBookingsTable(getCustomerMap(), getProductMap());
     });
     document.getElementById("filter-bonus-only").addEventListener("change", () => { currentInvoiceIndex = 0; lastInvoiceKey = ""; renderBookingsTable(getCustomerMap(), getProductMap()); });
-    const invoiceSortSelect = document.getElementById("invoice-item-sort");
-    invoiceSortSelect.value = getInvoiceSortOrder();
-    invoiceSortSelect.addEventListener("change", () => {
-      saveInvoiceSortOrder(invoiceSortSelect.value);
+    const invoiceSortFieldSelect = document.getElementById("invoice-sort-field");
+    const invoiceSortOrderSelect = document.getElementById("invoice-sort-order");
+    invoiceSortFieldSelect.value = getInvoiceSortField();
+    invoiceSortOrderSelect.value = getInvoiceSortOrder();
+    function updateInvoiceSortOrderLabel() {
+      const numeric = ["quantity","bonus"].includes(invoiceSortFieldSelect.value);
+      invoiceSortOrderSelect.options[0].textContent = numeric ? "Low to High" : "A–Z";
+      invoiceSortOrderSelect.options[1].textContent = numeric ? "High to Low" : "Z–A";
+    }
+    updateInvoiceSortOrderLabel();
+    invoiceSortFieldSelect.addEventListener("change", () => {
+      saveInvoiceSortField(invoiceSortFieldSelect.value);
+      updateInvoiceSortOrderLabel();
+      renderBookingsTable(getCustomerMap(), getProductMap());
+    });
+    invoiceSortOrderSelect.addEventListener("change", () => {
+      saveInvoiceSortOrder(invoiceSortOrderSelect.value);
       renderBookingsTable(getCustomerMap(), getProductMap());
     });
     const sidebar = document.querySelector(".sidebar");
