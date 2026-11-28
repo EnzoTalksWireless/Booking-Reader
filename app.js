@@ -1153,6 +1153,25 @@
       saveInvoiceSortOrder(invoiceSortSelect.value);
       renderBookingsTable(getCustomerMap(), getProductMap());
     });
+    const sidebar = document.querySelector(".sidebar");
+    const desktopSidebarToggle = document.getElementById("desktop-sidebar-toggle");
+    const SIDEBAR_COLLAPSED_KEY = "omf_sidebar_collapsed_v1";
+    function setDesktopSidebarCollapsed(collapsed) {
+      sidebar.classList.toggle("desktop-collapsed", collapsed);
+      desktopSidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+      desktopSidebarToggle.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+      desktopSidebarToggle.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+      desktopSidebarToggle.innerHTML = `<i data-lucide="${collapsed ? "panel-left-open" : "panel-left-close"}" aria-hidden="true"></i>`;
+      if (window.lucide?.createIcons) window.lucide.createIcons();
+      try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0"); }
+      catch (error) { console.warn("Sidebar preference could not be saved:", error); }
+    }
+    let savedSidebarState = false;
+    try { savedSidebarState = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1"; } catch (error) {}
+    setDesktopSidebarCollapsed(savedSidebarState);
+    desktopSidebarToggle.addEventListener("click", () => {
+      setDesktopSidebarCollapsed(!sidebar.classList.contains("desktop-collapsed"));
+    });
     document.getElementById("mobile-nav-toggle").addEventListener("click", () => {
       const sidebar = document.querySelector(".sidebar");
       const isOpen = sidebar.classList.toggle("mobile-nav-open");
