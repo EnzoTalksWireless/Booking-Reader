@@ -12,10 +12,13 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand-lockup" href="#" aria-label="Booking Reader dashboard">
-        <span class="brand-mark"><span></span><span></span><span></span></span>
-        <span class="brand-name">Booking<span>Reader</span></span>
-      </a>
+      <div class="sidebar-head">
+        <a class="brand-lockup" href="#" aria-label="Booking Reader dashboard">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span class="brand-name">Booking<span>Reader</span></span>
+        </a>
+        <button id="desktop-sidebar-toggle" class="desktop-sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded="true"><i data-lucide="panel-left-close" aria-hidden="true"></i></button>
+      </div>
       <div class="sidebar-mobile-head"><p class="sidebar-caption">OMF File Reader</p><button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="top-nav"><i data-lucide="menu" aria-hidden="true"></i><span class="mobile-nav-label">Menu</span></button></div>
       <div class="sidebar-section-label">WORKSPACE</div>
       <nav id="top-nav" class="nav-strip" aria-label="Main navigation">
