@@ -151,7 +151,8 @@
         <div class="surface invoice-filter-panel">
           <div class="invoice-filter-heading">
             <div><strong>Invoice filters</strong><span id="invoice-result-count" class="text-muted">0 invoices</span></div>
-            <label class="bonus-only-control"><input id="filter-bonus-only" type="checkbox" /> <span>Bonus items only</span></label>
+            <div class="invoice-filter-actions"><label class="invoice-sort-control" for="invoice-item-sort"><span>Sort items</span><select id="invoice-item-sort" aria-label="Sort invoice items"><option value="asc">A–Z</option><option value="desc">Z–A</option></select></label>
+            <label class="bonus-only-control"><input id="filter-bonus-only" type="checkbox" /> <span>Bonus items only</span></label></div>
           </div>
           <details class="company-filter" id="company-filter-details">
             <summary><span>Filter by company</span><span id="company-filter-summary" class="company-filter-summary">All companies</span></summary>
