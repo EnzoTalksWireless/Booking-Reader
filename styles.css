@@ -246,6 +246,7 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
 .desktop-sidebar-toggle:hover{background:rgba(255,255,255,.14);color:#fff}
 .desktop-sidebar-toggle .lucide{width:18px;height:18px}
 .sidebar-head .brand-lockup{padding:0 6px}
+@media(min-width:761px){
 .sidebar.desktop-collapsed{width:78px;flex-basis:78px;padding-left:12px;padding-right:12px}
 .sidebar.desktop-collapsed .sidebar-head{flex-direction:column;gap:14px;margin-bottom:28px}
 .sidebar.desktop-collapsed .brand-lockup{padding:0;justify-content:center}
@@ -253,4 +254,5 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
 .sidebar.desktop-collapsed .desktop-sidebar-toggle{order:-1}
 .sidebar.desktop-collapsed .nav-btn{justify-content:center;padding:12px 8px}
 .sidebar.desktop-collapsed .nav-btn .nav-icon{margin:0}
+}
 @media(max-width:760px){.sidebar-head{margin-bottom:8px}.desktop-sidebar-toggle{display:none}}
