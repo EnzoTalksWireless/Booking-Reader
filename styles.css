@@ -238,3 +238,21 @@ td{color:var(--text-secondary)}tr:hover td{background:var(--bg-hover)}
 .mobile-nav-toggle .lucide{width:19px;height:19px;stroke-width:2}
 .theme-icon{width:17px;height:17px;display:block;stroke-width:2}
 @media(max-width:760px){.nav-icon{width:19px;height:19px;flex-basis:19px}}
+
+/* Desktop collapsible sidebar */
+.sidebar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:30px}
+.sidebar-head .brand-lockup{min-width:0}
+.desktop-sidebar-toggle{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.15);border-radius:9px;background:rgba(255,255,255,.06);color:#d9e7fb;cursor:pointer}
+.desktop-sidebar-toggle:hover{background:rgba(255,255,255,.14);color:#fff}
+.desktop-sidebar-toggle .lucide{width:18px;height:18px}
+.sidebar-head .brand-lockup{padding:0 6px}
+@media(min-width:761px){
+.sidebar.desktop-collapsed{width:78px;flex-basis:78px;padding-left:12px;padding-right:12px}
+.sidebar.desktop-collapsed .sidebar-head{flex-direction:column;gap:14px;margin-bottom:28px}
+.sidebar.desktop-collapsed .brand-lockup{padding:0;justify-content:center}
+.sidebar.desktop-collapsed .brand-name,.sidebar.desktop-collapsed .sidebar-section-label,.sidebar.desktop-collapsed .nav-btn span{display:none}
+.sidebar.desktop-collapsed .desktop-sidebar-toggle{order:-1}
+.sidebar.desktop-collapsed .nav-btn{justify-content:center;padding:12px 8px}
+.sidebar.desktop-collapsed .nav-btn .nav-icon{margin:0}
+}
+@media(max-width:760px){.sidebar-head{margin-bottom:8px}.desktop-sidebar-toggle{display:none}}
