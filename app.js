@@ -22,6 +22,15 @@
 
     // Theme state is initialized once at startup and persisted between visits.
     const THEME_KEY = "omf_minimal_theme_v1";
+    const INVOICE_SORT_KEY = "omf_invoice_item_sort";
+    function getInvoiceSortOrder() {
+      try { return localStorage.getItem(INVOICE_SORT_KEY) === "desc" ? "desc" : "asc"; }
+      catch (error) { return "asc"; }
+    }
+    function saveInvoiceSortOrder(value) {
+      try { localStorage.setItem(INVOICE_SORT_KEY, value === "desc" ? "desc" : "asc"); }
+      catch (error) { console.warn("Could not save invoice item sort preference:", error); }
+    }
     function getSavedTheme() {
       try { return localStorage.getItem(THEME_KEY) || "light"; }
       catch (error) { return "light"; }
@@ -451,6 +460,8 @@
           });
         });
       });
+      const sortOrder = getInvoiceSortOrder();
+      rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity:"base", numeric:true }) * (sortOrder === "desc" ? -1 : 1));
       return rows;
     }
 
@@ -1136,6 +1147,12 @@
       renderBookingsTable(getCustomerMap(), getProductMap());
     });
     document.getElementById("filter-bonus-only").addEventListener("change", () => { currentInvoiceIndex = 0; lastInvoiceKey = ""; renderBookingsTable(getCustomerMap(), getProductMap()); });
+    const invoiceSortSelect = document.getElementById("invoice-item-sort");
+    invoiceSortSelect.value = getInvoiceSortOrder();
+    invoiceSortSelect.addEventListener("change", () => {
+      saveInvoiceSortOrder(invoiceSortSelect.value);
+      renderBookingsTable(getCustomerMap(), getProductMap());
+    });
     document.getElementById("mobile-nav-toggle").addEventListener("click", () => {
       const sidebar = document.querySelector(".sidebar");
       const isOpen = sidebar.classList.toggle("mobile-nav-open");
